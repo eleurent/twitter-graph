@@ -7,9 +7,8 @@ Options:
   --graph-nodes <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
   --credentials <file>   Path of the credentials for Twitter API [default: credentials.json].
   --cache <path>         Path of the user's friends cache [default: cache].
-  --nodes-out <path>     Path of the graph nodes file [default: out/nodes.xlsx].
-  --edges-out <path>     Path of the graph edges file [default: out/edges.xlsx].
-  --sleep-on-rate-limit  Sleep for a while when reaching the rate limit of Twitter API.
+  --out <path>           Path of the graph files [default: out/graph].
+  --stop-on-rate-limit   Stop fetching data and export the graph when reaching the rate limit of Twitter API.
 """
 import requests
 import twitter
@@ -19,6 +18,7 @@ from docopt import docopt
 from pathlib import Path
 
 TWITTER_RATE_LIMIT_ERROR = 88
+EXCLUDED = ["TayeDiggs", "RauliMrd"]
 
 
 def fetch_users(api, cache, followers_file="followers.json", friends_file="friends.json"):
@@ -53,17 +53,19 @@ def fetch_friendships(api, users, cache, friends_set=None, friendships_file="fri
     friendships = get_or_set(cache / "friendships.json", {})
     users_ids = set([str(user["id"]) for user in friends_set])
     for i, user in enumerate(users):
+        if user["screen_name"] in EXCLUDED:
+            continue
         if str(user["id"]) in friendships:
-            print("[{}/{}] @{} found in cache.".format(i, len(users), user["screen_name"]))
+            print("[{}/{}] @{} found in cache.".format(i+1, len(users), user["screen_name"]))
         else:
-            print("[{}/{}] Fetching friends of @{}".format(i, len(users), user["screen_name"]))
+            print("[{}/{}] Fetching friends of @{}".format(i+1, len(users), user["screen_name"]))
             try:
                 user_friends = api.GetFriendIDs(user_id=user["id"], stringify_ids=True)
             except twitter.error.TwitterError as e:
                 print("...but it failed. Error: {}".format(e))
                 user_friends = []
                 if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
-                    print("You reached the rate limit. Use --sleep-on-rate-limit or try again later.")
+                    print("You reached the rate limit. Disable --stop-on-rate-limit or try again later.")
                     break
             common_friends = set(user_friends).intersection(users_ids)
             friendships[user["id"]] = list(common_friends)
@@ -96,14 +98,21 @@ def get_or_set(path, value=None, force=False, api_function=False):
     return value
 
 
-def save_to_graph(users, friendships, nodes_path, edges_path):
+def save_to_graph(users, friendships, out_path):
     columns = [field for field in users[0] if field not in ["id", "id_str"]]
     nodes = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
     users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
+    nodes_path = out_path.with_suffix(".nodes.xlsx")
     users_df.to_excel(nodes_path, index_label="Id")
-    edges = [[source, target] for source, source_friends in friendships.items() for target in source_friends]
+    print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
+    users_ids = [user["id_str"] for user in users]
+
+    edges = [[source, target] for source, source_friends in friendships.items()
+             for target in source_friends if target in users_ids]
     edges_df = pd.DataFrame(edges, columns=['Source', 'Target'])
+    edges_path = out_path.with_suffix(".edges.xlsx")
     edges_df.to_excel(edges_path)
+    print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
 
 
 def main():
@@ -113,13 +122,13 @@ def main():
                       consumer_secret=credentials["api_secret_key"],
                       access_token_key=credentials["access_token"],
                       access_token_secret=credentials["access_token_secret"],
-                      sleep_on_rate_limit=options["--sleep-on-rate-limit"])
+                      sleep_on_rate_limit=not options["--stop-on-rate-limit"])
 
     try:
         followers, friends, all_users = fetch_users(api, Path(options["--cache"]))
         users = {"followers": followers, "friends": friends, "all": all_users}[options["--graph-nodes"]]
         friendships = fetch_friendships(api, users, Path(options["--cache"]), friends_set=all_users)
-        save_to_graph(users, friendships, nodes_path=Path(options["--nodes-out"]), edges_path=Path(options["--edges-out"]))
+        save_to_graph(users, friendships, Path(options["--out"]))
     except requests.exceptions.ConnectionError as e:
         print(e)  # Why do I get these?
         main()  # Retry!
