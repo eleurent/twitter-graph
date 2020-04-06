@@ -5,6 +5,7 @@ Options:
   -h --help              Show this screen.
   --screen-name <name>   User's screen name.
   --graph-nodes <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
+  --edges-ratio <ratio>  Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
   --credentials <file>   Path of the credentials for Twitter API [default: credentials.json].
   --cache <path>         Path of the user's friends cache [default: cache].
   --out <path>           Path of the graph files [default: out/graph].
@@ -14,6 +15,7 @@ import requests
 import twitter
 import json
 import pandas as pd
+import random
 from docopt import docopt
 from pathlib import Path
 
@@ -30,28 +32,29 @@ def fetch_users(api, cache, followers_file="followers.json", friends_file="frien
     :param Path cache: the path to a cache directory
     :param str followers_file: the followers filename in the cache
     :param str friends_file: the friends filename in the cache
-    :return: followers, friends, and union of both
+    :return: followers, friends, intersection of both, and union of both
     """
     followers = get_or_set(cache / followers_file, api.GetFollowers, api_function=True)
     friends = get_or_set(cache / friends_file, api.GetFriends, api_function=True)
     followers_ids = [user["id"] for user in followers]
+    mutuals = [user for user in friends if user["id"] in followers_ids]
     all_users = followers + [user for user in friends if user["id"] not in followers_ids]
-    return followers, friends, all_users
+    return followers, friends, mutuals, all_users
 
 
-def fetch_friendships(api, users, cache, friends_set=None, friendships_file="friendships.json"):
+def fetch_friendships(api, users, cache, friends_restricted_to=None, friendships_file="friendships.json"):
     """
         Fetch the friends of a list of users from Twitter API
     :param twitter.Api api: a Twitter API instance
     :param list users: the users whose friends to look for
     :param Path cache: the path to a cache directory
-    :param list friends_set: the set of potential friends to consider
+    :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
     :return dict: a dict of friendships in the form {user_id: [list of friends ids]}
     """
-    friends_set = friends_set if friends_set else users
+    friends_restricted_to = friends_restricted_to if friends_restricted_to else users
     friendships = get_or_set(cache / "friendships.json", {})
-    users_ids = set([str(user["id"]) for user in friends_set])
+    users_ids = set([str(user["id"]) for user in friends_restricted_to])
     for i, user in enumerate(users):
         if user["screen_name"] in EXCLUDED:
             continue
@@ -98,17 +101,29 @@ def get_or_set(path, value=None, force=False, api_function=False):
     return value
 
 
-def save_to_graph(users, friendships, out_path):
+def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users=None):
     columns = [field for field in users[0] if field not in ["id", "id_str"]]
     nodes = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
     users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
+    users_df["Label"] = users_df["name"]
     nodes_path = out_path.with_suffix(".nodes.xlsx")
     users_df.to_excel(nodes_path, index_label="Id")
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
     users_ids = [user["id_str"] for user in users]
 
-    edges = [[source, target] for source, source_friends in friendships.items()
-             for target in source_friends if target in users_ids]
+    if edges_ratio < 1:
+        protected_users = [user["id_str"] for user in protected_users] if protected_users else []
+        edges, protected_edges = [], []
+        for source, source_friends in friendships.items():
+            if source in protected_users:
+                protected_edges += [[source, target] for target in source_friends if target in users_ids]
+            else:
+                edges += [[source, target] for target in source_friends if target in users_ids]
+        edges = random.choices(edges, k=int(edges_ratio * len(edges)))
+        edges += protected_edges
+    else:
+        edges = [[source, target] for source, source_friends in friendships.items()
+                 for target in source_friends if target in users_ids]
     edges_df = pd.DataFrame(edges, columns=['Source', 'Target'])
     edges_path = out_path.with_suffix(".edges.xlsx")
     edges_df.to_excel(edges_path)
@@ -125,10 +140,11 @@ def main():
                       sleep_on_rate_limit=not options["--stop-on-rate-limit"])
 
     try:
-        followers, friends, all_users = fetch_users(api, Path(options["--cache"]))
+        followers, friends, mutuals, all_users = fetch_users(api, Path(options["--cache"]))
         users = {"followers": followers, "friends": friends, "all": all_users}[options["--graph-nodes"]]
-        friendships = fetch_friendships(api, users, Path(options["--cache"]), friends_set=all_users)
-        save_to_graph(users, friendships, Path(options["--out"]))
+        friendships = fetch_friendships(api, users, Path(options["--cache"]), friends_restricted_to=all_users)
+        save_to_graph(users, friendships, Path(options["--out"]),
+                      edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
     except requests.exceptions.ConnectionError as e:
         print(e)  # Why do I get these?
         main()  # Retry!

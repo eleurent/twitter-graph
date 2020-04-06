@@ -2,19 +2,22 @@
 
 Fetch and visualize the graph of you twitter friends and followers.
 
-## My own graph
+## Example: my own Twitter graph
 
-Here is an example of what the graph of twitter friends looks like.
+Here is what the graph of my Twitter friends looks like.
 
 ### Clusters
 
-I identified several clusters, distinguished by color:
-* ![#f00](https://placehold.it/15/f00/000000?text=+) the Machine Learning research community;
-* ![#f0f](https://placehold.it/15/f0f/000000?text=+) the French research and higher education community;
-* ![#00f](https://placehold.it/15/00f/000000?text=+) the students and professors of Mines ParisTech university;
-* ![#ff0](https://placehold.it/15/ff0/000000?text=+) the SequeL lab, where I am doing my PhD;
-* ![#0ff](https://placehold.it/15/0ff/000000?text=+) a startup and entrepreneurship community;
-* ![#0f0](https://placehold.it/15/0f0/000000?text=+) the drone community, and that of Parrot where I worked as an engineer;
+I identified several clusters, represented by color:
+* ![#f00](https://placehold.it/15/f00/000000?text=+) Machine Learning researchers;
+* ![#0f0](https://placehold.it/15/0f0/000000?text=+) the drone community, from my time at Parrot;
+* ![#00f](https://placehold.it/15/00f/000000?text=+) French Academia;
+* ![#ff0](https://placehold.it/15/ff0/000000?text=+) Entertainment: youtubers, cartoonists, video games
+* ![#0ff](https://placehold.it/15/0ff/000000?text=+) the entrepreneurship/startup community;
+
+By zooming in, we can find additional clusters:
+* ![#00f](https://placehold.it/15/00f/000000?text=+) students and professors of Mines ParisTech university;
+* the SequeL lab, where I am doing my PhD
 
 ### Popular accounts
 
@@ -68,3 +71,62 @@ KeyboardInterrupt
 [5/2406] Fetching friends of @AdrienRahier
 ```
 ### Step 2. Visualize with Gephi
+
+Gephi is a software for...
+Refer to the documentation.
+
+I will simply recall the main steps. 
+
+### 1. Import nodes
+
+* Start a new project;
+* go to the the *Data Laboratory* tab;
+* select *Import Spreadsheet* in the toolbar, and choose `out/graph.nodes.csv`;
+* in the *General Options* pane, select _Import as: Nodes table_, then click Next and Finish;
+* in the *Import report* window, select _Append to existing workspace_, and click OK.
+
+A table of nodes should appear in the Data Laboratory.
+
+### 2. Import edges
+
+* select again *Import Spreadsheet* in the toolbar, and choose `out/graph.edges.csv`;
+* in the *General Options* pane, select _Import as: Edges table_ **(not Matrix)**, then click Next and Finish;
+* in the *Import report* window, click on *More options* and uncheck *Create-missing nodes* and choose *Edges merge strategy: Last*; 
+* select _Append to existing workspace_, and click OK.
+
+A table of edges should appear in the Data Laboratory.
+
+### 3. Choose a layout
+
+* Go back to the *Overview* tab. You should see the graph with a random square layout;
+* In the *Layout* window, select a force-based layout, and click *Run*. I use ForceAtlas2 [Jacomy M. et. al., 2014];
+* You can tinker with the layout parameters, such as *Dissuade Hubs* or *Prevent Overlap*.
+
+The graph will reorganise so that connected nodes are closer, and you should see the emergence of clusters.
+
+### 4. Set the nodes sizes
+
+As mentioned above, I use PageRank to set the nodes sizes.
+* First, the PageRank of nodes must be computed. In the *Statistics* window, locate *Network Overview/PageRank* and click Run. Keep default parameters and close the report;
+* In the *Appearance* window, select *Nodes* and *Size* in the toolbar, and than select *Ranking*. Select the range of sizes (I use 10-50), and click Apply.  
+
+The nodes labels can be enabled by clicking the black `T` icon in the bottom *Overview* toolbar. Then, the labels can be scaled with node size  by selecting the `A` icon (Size mode) and choosing Node size.  
+
+### 4. Set the nodes colours
+
+The nodes can be coloured automatically in the Appearance/Nodes/Colour tab, by either a Partition of attributes (e.g. verified or location), or by a Ranking of attributes (e.g.  Degree, In-Degree, Out-Degree, followers_count, etc.).
+
+But I prefer colouring them manually so as to distinguish the different clusters. For each cluser, I  select the Brush tool in the toolbar, pick the cluster color, and click on a few highly-connected nodes inside the cluster. All its neighbours will be coloured as well, which makes the process quick. Repeat it until the whole graph is colored.
+
+### 5. Render
+
+Go to the Preview window, select the desired options, and click *Export:pdf*.
+
+
+## References
+* [Continuous Graph Layout Algorithm for Handy Network Visualization Designed for the Gephi Software](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0098679), Jacomy M. et. al., 2014.
+
+## Credits
+
+This project was more than inspired by this [excellent video](https://www.youtube.com/watch?v=UX7YQ6m2r_o) by [Mehdi Moussaïd
+](https://twitter.com/Mehdi_Moussaid) [:tv:](https://www.youtube.com/fouloscopie).
