@@ -11,6 +11,8 @@ Options:
   --out <path>           Path of the graph files [default: out/graph].
   --stop-on-rate-limit   Stop fetching data and export the graph when reaching the rate limit of Twitter API.
 """
+from http.server import HTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
+
 import requests
 import twitter
 import json
@@ -106,8 +108,8 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
     nodes = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
     users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
     users_df["Label"] = users_df["name"]
-    nodes_path = out_path.with_suffix(".nodes.xlsx")
-    users_df.to_excel(nodes_path, index_label="Id")
+    nodes_path = out_path.with_suffix(".nodes.csv")
+    users_df.to_csv(nodes_path, index_label="Id")
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
     users_ids = [user["id_str"] for user in users]
 
@@ -115,6 +117,8 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
         protected_users = [user["id_str"] for user in protected_users] if protected_users else []
         edges, protected_edges = [], []
         for source, source_friends in friendships.items():
+            if source not in users_ids:
+                continue
             if source in protected_users:
                 protected_edges += [[source, target] for target in source_friends if target in users_ids]
             else:
@@ -122,12 +126,19 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
         edges = random.choices(edges, k=int(edges_ratio * len(edges)))
         edges += protected_edges
     else:
-        edges = [[source, target] for source, source_friends in friendships.items()
+        edges = [[source, target] for source, source_friends in friendships.items() if source in users_ids
                  for target in source_friends if target in users_ids]
     edges_df = pd.DataFrame(edges, columns=['Source', 'Target'])
-    edges_path = out_path.with_suffix(".edges.xlsx")
-    edges_df.to_excel(edges_path)
+    edges_path = out_path.with_suffix(".edges.csv")
+    edges_df.to_csv(edges_path)
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
+
+
+def serve_http(server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, port=8000):
+    server_address = ('', port)
+    httpd = server_class(server_address, handler_class)
+    print("Serving HTTP server at http://localhost:{}".format(port))
+    httpd.serve_forever()
 
 
 def main():
@@ -141,10 +152,11 @@ def main():
 
     try:
         followers, friends, mutuals, all_users = fetch_users(api, Path(options["--cache"]))
-        users = {"followers": followers, "friends": friends, "all": all_users}[options["--graph-nodes"]]
+        users = {"followers": followers, "friends": friends, "all": all_users, "few":followers}[options["--graph-nodes"]]
         friendships = fetch_friendships(api, users, Path(options["--cache"]), friends_restricted_to=all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
                       edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
+        serve_http()
     except requests.exceptions.ConnectionError as e:
         print(e)  # Why do I get these?
         main()  # Retry!
