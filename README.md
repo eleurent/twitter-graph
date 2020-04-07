@@ -10,13 +10,13 @@ Here is what the graph of my Twitter friends looks like.
 
 I identified several clusters, represented by color:
 * ![#f00](https://placehold.it/15/f00/000000?text=+) Machine Learning researchers;
-* ![#0f0](https://placehold.it/15/0f0/000000?text=+) the drone community, from my time at Parrot;
+* ![#0f0](https://placehold.it/15/0f0/000000?text=+) Drone community, from my time at Parrot;
 * ![#00f](https://placehold.it/15/00f/000000?text=+) French Academia;
 * ![#ff0](https://placehold.it/15/ff0/000000?text=+) Entertainment: youtubers, cartoonists, video games
-* ![#0ff](https://placehold.it/15/0ff/000000?text=+) the entrepreneurship/startup community;
+* ![#0ff](https://placehold.it/15/0ff/000000?text=+) Entrepreneurship/startup community;
 
-By zooming in, we can find additional clusters:
-* ![#00f](https://placehold.it/15/00f/000000?text=+) students and professors of Mines ParisTech university;
+By zooming in, we can find smaller additional clusters:
+* students and professors of Mines ParisTech university;
 * the SequeL lab, where I am doing my PhD
 
 ### Popular accounts
@@ -59,18 +59,33 @@ The script should start by getting the list of your friends and followers, befor
 [3/2406] Fetching friends of @Limericking
 ```
 
-Since Twitter limits the rate of its API to 15 requests per window of 15 minutes, this is going to take a bit of time, probably a few hours.
+Since Twitter limits the rate of its API to 15 requests per window of 15 minutes, this is going to take a while.
 In order to interrupt and resume the requests at any time, a very simple caching system immediately exports the requests results to a local json file.
 
 ```
 KeyboardInterrupt
+
+python3 fetch_data.py
 [1/2406] @Mehdi_Moussaid found in cache.
 [2/2406] @Inria_Lille found in cache.
 [3/2406] @Limericking found in cache.
 [4/2406] Fetching friends of @Ariane_lis
-[5/2406] Fetching friends of @AdrienRahier
 ```
-### Step 2. Visualize with Gephi
+
+### Step 2. Visualize with d3.js
+
+When the dataset has been fetched, the resulting graph will be exported to two csv files containing the nodes and edges.
+It can be visualized directly in your browser with [d3-force](https://github.com/d3/d3-force).
+
+To that end, an HTTP server will start at the end of the script.
+```
+[2406/2406] Fetching friends of @AdrienRahier
+Successfully exported 94 nodes to out\graph.nodes.csv.
+Successfully exported 111 edges to out\graph.edges.csv.
+Serving HTTP server at http://localhost:8000?nodes=out/graph.nodes.csv&edges=out/graph.edges.csv
+```
+
+### Step 2 (bis). Visualize with Gephi
 
 Gephi is a software for...
 Refer to the documentation.

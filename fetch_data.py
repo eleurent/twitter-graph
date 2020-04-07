@@ -136,7 +136,6 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
 
 
 def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, port=8000):
-
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     url = "http://localhost"
@@ -145,7 +144,7 @@ def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPR
         nodes_path = out_path.with_suffix(".nodes.csv")
         edges_path = out_path.with_suffix(".edges.csv")
         params = "nodes={}&edges={}".format(nodes_path.as_posix(), edges_path.as_posix())
-    print("Serving HTTP server at {}:{}?{}".format(url, port, params))
+    print("Serving HTTP at {}:{}?{}".format(url, port, params))
     httpd.serve_forever()
 
 
