@@ -132,12 +132,20 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
     edges_path = out_path.with_suffix(".edges.csv")
     edges_df.to_csv(edges_path)
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
+    return nodes_path, edges_path
 
 
-def serve_http(server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, port=8000):
+def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, port=8000):
+
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    print("Serving HTTP server at http://localhost:{}".format(port))
+    url = "http://localhost"
+    params = ""
+    if out_path:
+        nodes_path = out_path.with_suffix(".nodes.csv")
+        edges_path = out_path.with_suffix(".edges.csv")
+        params = "nodes={}&edges={}".format(nodes_path.as_posix(), edges_path.as_posix())
+    print("Serving HTTP server at {}:{}?{}".format(url, port, params))
     httpd.serve_forever()
 
 
@@ -152,11 +160,12 @@ def main():
 
     try:
         followers, friends, mutuals, all_users = fetch_users(api, Path(options["--cache"]))
-        users = {"followers": followers, "friends": friends, "all": all_users, "few":followers}[options["--graph-nodes"]]
+        users = {"followers": followers, "friends": friends, "all": all_users,
+                 "few": random.choices(followers, k=100)}[options["--graph-nodes"]]
         friendships = fetch_friendships(api, users, Path(options["--cache"]), friends_restricted_to=all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
-                      edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
-        serve_http()
+                              edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
+        serve_http(Path(options["--out"]))
     except requests.exceptions.ConnectionError as e:
         print(e)  # Why do I get these?
         main()  # Retry!
