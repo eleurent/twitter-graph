@@ -4,20 +4,26 @@ Fetch and visualize the graph of you twitter friends and followers.
 
 ## Example: my own Twitter graph
 
+Twitter is a place where I 
+
 Here is what the graph of my Twitter friends looks like.
+
+![Friends HD](examples/friends/friends_hd.jpg)
 
 ### Clusters
 
-I identified several clusters, represented by color:
-* ![#f00](https://placehold.it/15/f00/000000?text=+) Machine Learning researchers;
-* ![#0f0](https://placehold.it/15/0f0/000000?text=+) Drone community, from my time at Parrot;
-* ![#00f](https://placehold.it/15/00f/000000?text=+) French Academia;
-* ![#ff0](https://placehold.it/15/ff0/000000?text=+) Entertainment: youtubers, cartoonists, video games
-* ![#0ff](https://placehold.it/15/0ff/000000?text=+) Entrepreneurship/startup community;
+By running a clustering algorithm, several communities are automatically discovered: 
+* ![#00f](https://placehold.it/15/00f/000000?text=+) the French Academia;
+* ![#f00](https://placehold.it/15/f00/000000?text=+) the Machine Learning research community;
+* ![#0ff](https://placehold.it/15/0ff/000000?text=+) software engineers, mainly from my internship at Twitter, and silicon valley startups;
+* ![#0f0](https://placehold.it/15/0f0/000000?text=+) the Drone community, from my time at Parrot;
+* ![#ff0](https://placehold.it/15/ff0/000000?text=+) entertainment accounts: youtubers, cartoonists, video games.
 
-By zooming in, we can find smaller additional clusters:
-* students and professors of Mines ParisTech university;
-* the SequeL lab, where I am doing my PhD
+Zooming in, we can find additional smaller clusters:
+* ![#f90](https://placehold.it/15/f90/000000?text=+) the SequeL lab, where I am doing my PhD, and French researchers in theoretical ML
+* ![#b0b](https://placehold.it/15/b0b/000000?text=+) students and staff of Mines ParisTech, my university;
+* ![#09f](https://placehold.it/15/09f/000000?text=+) students and staff of Mines ParisTech, my university;
+* ![#f90](https://placehold.it/15/f90/000000?text=+) the French entrepreneurship community
 
 ### Popular accounts
 
@@ -72,7 +78,7 @@ python3 fetch_data.py
 [4/2406] Fetching friends of @Ariane_lis
 ```
 
-### Step 2. Visualize with d3.js
+### Step 2. (optional) Visualize with d3.js
 
 When the dataset has been fetched, the resulting graph will be exported to two csv files containing the nodes and edges.
 It can be visualized directly in your browser with [d3-force](https://github.com/d3/d3-force).
@@ -82,7 +88,7 @@ To that end, an HTTP server will start at the end of the script.
 [2406/2406] Fetching friends of @AdrienRahier
 Successfully exported 94 nodes to out\graph.nodes.csv.
 Successfully exported 111 edges to out\graph.edges.csv.
-Serving HTTP server at http://localhost:8000?nodes=out/graph.nodes.csv&edges=out/graph.edges.csv
+Serving HTTP at http://localhost:8000?nodes=out/graph.nodes.csv&edges=out/graph.edges.csv
 ```
 
 ### Step 2 (bis). Visualize with Gephi
@@ -131,15 +137,18 @@ The nodes labels can be enabled by clicking the black `T` icon in the bottom *Ov
 
 The nodes can be coloured automatically in the Appearance/Nodes/Colour tab, by either a Partition of attributes (e.g. verified or location), or by a Ranking of attributes (e.g.  Degree, In-Degree, Out-Degree, followers_count, etc.).
 
-But I prefer colouring them manually so as to distinguish the different clusters. For each cluser, I  select the Brush tool in the toolbar, pick the cluster color, and click on a few highly-connected nodes inside the cluster. All its neighbours will be coloured as well, which makes the process quick. Repeat it until the whole graph is colored.
+In order to identify clusters, we must first run the *Modularity* algorithm from the Statistics window. Use the *Resolution* parameter to tune the desired number of clusters.
+Then, set the nodes colour in the Appearance window by Ranking of Modularity.
 
 ### 5. Render
 
-Go to the Preview window, select the desired options, and click *Export:pdf*.
+Go to the Preview window, select the desired options, and Export to png or pdf.
 
 
 ## References
-* [Continuous Graph Layout Algorithm for Handy Network Visualization Designed for the Gephi Software](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0098679), Jacomy M. et. al., 2014.
+* [1] [Fast unfolding of communities in large networks](https://arxiv.org/abs/0803.0476), Blondel V. et al. (2008).
+* [2] [Laplacian Dynamics and Multiscale Modular Structure in Networks](https://arxiv.org/abs/0812.1770), Lambiotte R. et al. (2008).
+* [3] [Continuous Graph Layout Algorithm for Handy Network Visualization Designed for the Gephi Software](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0098679), Jacomy M. et al. (2014).
 
 ## Credits
 
