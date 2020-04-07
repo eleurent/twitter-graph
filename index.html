@@ -3,12 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <title>twitter-graph</title>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
     <script src="https://d3js.org/d3-dsv.v1.min.js"></script>
     <script src="https://d3js.org/d3-fetch.v1.min.js"></script>
-    <script src="https://gw.alipayobjects.com/os/antv/pkg/_antv.g6-3.3.1/dist/g6.min.js"></script>
-    <script src="visualize.js"></script>
+    <script src="https://d3js.org/d3-dispatch.v1.min.js"></script>
+    <script src="https://d3js.org/d3-quadtree.v1.min.js"></script>
+    <script src="https://d3js.org/d3-timer.v1.min.js"></script>
+    <script src="https://d3js.org/d3-force.v2.min.js"></script>
+    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <style>
+        .links line {
+          stroke-opacity: 0.4;
+          stroke: grey;
+          stroke-width: 2;
+        }
+        .nodes circle {
+          stroke: black	;
+          stroke-width: 1.5;
+        }
+        .labels text {
+          font-family: "FontAwesome";
+          font-size:20px;
+          fill: white;
+        }
+        html, body { margin:0; padding:0; overflow:hidden }
+        svg { position:fixed; top:0; left:0; height:100%; width:100%; background-color:black}
+    </style>
 </head>
 <body>
     <div id="mountNode"></div>
+    <svg width="800" height="600"></svg>
+    <script src="d3-visualize.js"></script>
 </body>
 </html>
