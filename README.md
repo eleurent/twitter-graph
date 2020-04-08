@@ -16,7 +16,7 @@ Wouldn't it be be nice, however, to have some hindsight and perspective on what'
 ![Friends HD](examples/friends/friends_1080p.jpg)
 
 <p align="center">
-_My twitter world litterally looks like a world map, which is fantastic!_
+<em>My twitter world litterally looks like a world map, which is fantastic!</em>
 </p>
 
 ### Download
