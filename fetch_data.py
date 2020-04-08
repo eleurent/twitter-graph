@@ -10,6 +10,7 @@ Options:
   --cache <path>         Path of the user's friends cache [default: cache].
   --out <path>           Path of the graph files [default: out/graph].
   --stop-on-rate-limit   Stop fetching data and export the graph when reaching the rate limit of Twitter API.
+  --run-http-server      Run an HTTP server to visualize the graph in you browser with d3.js.
 """
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -139,15 +140,16 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
     return nodes_path, edges_path
 
 
-def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, port=8000):
+def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler,
+               url="http://localhost", port=8000):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    url = "http://localhost"
-    params = ""
     if out_path:
         nodes_path = out_path.with_suffix(".nodes.csv")
         edges_path = out_path.with_suffix(".edges.csv")
         params = "nodes={}&edges={}".format(nodes_path.as_posix(), edges_path.as_posix())
+    else:
+        params = ""
     print("Serving HTTP at {}:{}?{}".format(url, port, params))
     httpd.serve_forever()
 
@@ -168,7 +170,8 @@ def main():
         friendships = fetch_friendships(api, users, Path(options["--cache"]), friends_restricted_to=all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
                       edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
-        serve_http(Path(options["--out"]))
+        if options["--run-http-server"]:
+            serve_http(Path(options["--out"]))
     except requests.exceptions.ConnectionError as e:
         print(e)  # Why do I get these?
         main()  # Retry!
