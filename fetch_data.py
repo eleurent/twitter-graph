@@ -113,6 +113,7 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
     nodes = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
     users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
     users_df["Label"] = users_df["name"]
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     nodes_path = out_path.with_suffix(".nodes.csv")
     users_df.to_csv(nodes_path, index_label="Id")
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
