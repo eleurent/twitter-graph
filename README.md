@@ -1,21 +1,23 @@
 # twitter-graph
 
-Fetch and visualize the graph of you twitter friends and followers.
 
-## Example: my graph
 
 I spend a lot of time on Twitter, and over the years I have been following a wide variety of people: old friends, work colleagues, funny accounts, etc.
-Thus, my timeline has become a little bit messy and it would be great to have some hindsight and perspective on what's actually going on.
+Gradually, my timeline has become this messy mix that makes Twitter so enjoyable. 
+
+Wouldn't it be be nice, however, to have some hindsight and perspective on what's actually going on?
+
+
+## Behold: the graph of my Twitter friends
+
+ 
+ 
+
+![Friends HD](examples/friends/friends_1080p.jpg)
 
 <p align="center">
-   <b>Behold: the graph of my Twitter friends</b>
-</p>
- 
- 
-
-![Friends HD](examples/friends/friends_1080p.png)
-
 _My twitter world litterally looks like a world map, which is fantastic!_
+</p>
 
 ### Download
 
@@ -27,17 +29,17 @@ _My twitter world litterally looks like a world map, which is fantastic!_
 ### Clusters
 
 By running a clustering algorithm [1, 2], several communities are automatically discovered: 
-* ![#00f](https://placehold.it/15/00f/000000?text=+) the French Academia;
 * ![#f00](https://placehold.it/15/f00/000000?text=+) the Machine Learning research community;
+* ![#00f](https://placehold.it/15/00f/000000?text=+) French academia;
 * ![#0ff](https://placehold.it/15/0ff/000000?text=+) software engineers, mainly from my internship at Twitter, and silicon valley startups;
 * ![#0f0](https://placehold.it/15/0f0/000000?text=+) the Drone community, from my time at Parrot;
 * ![#ff0](https://placehold.it/15/ff0/000000?text=+) entertainment accounts: youtubers, cartoonists, video games.
 
-Zooming in, we can find additional smaller clusters:
+As we zoom in closer, we can find additional smaller clusters:
 * ![#f90](https://placehold.it/15/f90/000000?text=+) the SequeL lab, where I am doing my PhD, and French researchers in theoretical ML
-* ![#b0b](https://placehold.it/15/b0b/000000?text=+) students and staff of Mines ParisTech, my university;
+* ![#b0b](https://placehold.it/15/b0b/000000?text=+) Anglo-Saxon academia;
 * ![#09f](https://placehold.it/15/09f/000000?text=+) students and staff of Mines ParisTech, my university;
-* ![#f90](https://placehold.it/15/f90/000000?text=+) the French entrepreneurship community
+* ![#f90](https://placehold.it/15/8f8/000000?text=+) French startups and entrepreneurs
 
 ### Popular accounts
 
