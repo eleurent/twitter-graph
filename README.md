@@ -84,6 +84,13 @@ The first thing we can notice is that this graph looks more clustered than the p
 
 Another observation is that some clusters have disappeared, namely the ![#ff0](https://placehold.it/15/ff0/000000?text=+) entertainment and ![#b0b](https://placehold.it/15/b0b/000000?text=+) Anglo-Saxon academia. By looking closer, we can still find remains of these groups but they have been absorbed by the bigger fishes of ![#f90](https://placehold.it/15/8f8/000000?text=+) French tech and  ![#00f](https://placehold.it/15/00f/000000?text=+) French academia, respectively.     
 
+#### Downloads
+
+| Original | [1080p](examples/followers/followers_1080p.png) | [2160p](examples/followers/followers_2160p.png) | [4320p](examples/followers/followers_4320p.jpg) | [8640p](examples/followers/followers_8640p.jpg) |  [pdf](examples/followers/followers.pdf) |  [svg](examples/followers/followers.svg) |
+| ---- |:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|
+| Labeled | [1080p](examples/followers/followers_label_1080p.png) | [2160p](examples/followers/followers_label_2160p.png) | [4320p](examples/followers/followers_label_4320p.jpg) | [8640p](examples/followers/followers_label_8640p.jpg) | [pdf](examples/followers/followers_label.pdf) | [svg](examples/followers/followers_label.svg) |
+| Hubs | [1080p](examples/followers/followers_hubs_1080p.png) | [2160p](examples/followers/followers_hubs_2160p.png) | [4320p](examples/followers/followers_hubs_4320p.jpg) | [8640p](examples/followers/followers_hubs_8640p.jpg) | [pdf](examples/followers/followers_hubs.pdf) | [svg](examples/followers/followers_hubs.svg) |  
+
 
 #### Statistics
 
