@@ -5,28 +5,30 @@
 I spend a lot of time on Twitter, and over the years I have been following a wide variety of people: old friends, work colleagues, funny accounts, etc.
 Gradually, my timeline has become this messy mix that makes Twitter so enjoyable. 
 
-Wouldn't it be be nice, however, to have some hindsight and perspective on what's actually going on?
+Wouldn't it be be nice, though, to have some hindsight and perspective on what's actually going on?
+
+
+Contents | [Example](#behold-the-graph-of-my-twitter-friends) | [Usage](#usage) | [References](#references) | [Credits](#credits)
 
 
 ## Behold: the graph of my Twitter friends
 
- 
- 
 
-![Friends HD](examples/friends/friends_1080p.jpg)
+![Friends](examples/friends/friends_1080p.jpg)
 
 <p align="center">
 <em>My twitter world litterally looks like a world map, which is fantastic!</em>
 </p>
 
-### Download
+
+#### Download
 
 | Original | [1080p](examples/friends/friends_1080p.png) | [2160p](examples/friends/friends_2160p.png) | [4320p](examples/friends/friends_4320p.jpg) | [8640p](examples/friends/friends_8640p.jpg) |  [pdf](examples/friends/friends.pdf) |
 | ---- |:-----:|:-----:|:-----:|:-----:|:-----:|  
 | Labeled | [1080p](examples/friends/friends_label_1080p.png) | [2160p](examples/friends/friends_label_2160p.png) | [4320p](examples/friends/friends_label_4320p.jpg) | [8640p](examples/friends/friends_label_8640p.jpg) | [pdf](examples/friends/friends_label.pdf) |
 | Hubs | [1080p](examples/friends/friends_hubs_1080p.png) | [2160p](examples/friends/friends_hubs_2160p.png) | [4320p](examples/friends/friends_hubs_4320p.jpg) | [8640p](examples/friends/friends_hubs_8640p.jpg) | [pdf](examples/friends/friends_hubs.pdf) | 
 
-### Clusters
+#### Clusters
 
 By running a clustering algorithm [1, 2], several communities are automatically discovered: 
 * ![#f00](https://placehold.it/15/f00/000000?text=+) the Machine Learning research community;
@@ -39,55 +41,97 @@ As we zoom in closer, we can find additional smaller clusters:
 * ![#f90](https://placehold.it/15/f90/000000?text=+) the SequeL lab, where I am doing my PhD, and French researchers in theoretical ML
 * ![#b0b](https://placehold.it/15/b0b/000000?text=+) Anglo-Saxon academia;
 * ![#09f](https://placehold.it/15/09f/000000?text=+) students and staff of Mines ParisTech, my university;
-* ![#f90](https://placehold.it/15/8f8/000000?text=+) French startups and entrepreneurs
+* ![#f90](https://placehold.it/15/8f8/000000?text=+) French tech, startups and entrepreneurs
 
-### Popular accounts
+#### Popular accounts
 
-We can find out which accounts are the most popular *according to this graph*.  That is, not by ranking by the number of followers for instance, but rather 
+The size of the nodes represents which accounts are the most popular *according to this graph*.  
+ 
+Intuitively, a *popular* account is followed by many other *popular* accounts. Popularity is also related the probability of reaching a node by walking randomly in the graph. The PageRank algorithm [3], used in search engines, provides such a metric. 
 
-I use PageRank to estimate. It is related to the probability of reaching an account by following a random path in the graph.
+<p align="center>
+<img src="examples/friends/friends_label_4320p.jpg" width="430" height="270" />
+</p>
 
-Nothing too surprising but different from number of followers
+On this graph the results are reasonable: accounts with many followers such as [@elonmusk](https://twitter.com/elonmusk), [@ylecunn](https://twitter.com/ylecun) and [@snowden](https://twitter.com/snowden) end up with a high PageRank. But the structure of the network also plays an important part, since by only relying on the number of followers, accounts such as [@TheRealJimCarey](https://twitter.com/TheRealJimCarey), [@RobertDowneyJr](https://twitter.com/RobertDowneyJr), [@tomhanks](https://twitter.com/tomhanks) would be very salient while they barely stand out in terms of PageRank.
 
-### Hubs
+#### Hubs
 
-People between several communities.
+Instead of scaling the nodes by popularity, we can also look for nodes that are in-between several communities, and connect them together. It is measured by the Betweenness Centrality, which measures how often a node appears on shortest paths between nodes of the Network.
+ 
+<p align="center>
+<img src="examples/friends/friends_hubs_4320p.jpg" width="430" height="270" />
+</p>
 
+We can see...
 
-### Statistics
+#### Statistics
 
 | Statistics | Value | 
 | ------------- |:-------------:| 
-| Nodes | 2412 |
+| Nodes | 2406 |
 | Edges | 107697 |
 | Diameter | 9 |
 | Average path length | 3.1 |
-| Average degree | 44.65 | 
+| Average degree | 44.65 |
+| Average clustering coefficient| 0.234 |  
+
+### The graph of my followers
+
+![Friends](examples/followers/followers_1080p.jpg)
+
+The first thing we can notice is that this graph looks more clustered than the previous one, which is confirmed by a higher average clustering coefficient.
+
+Another observation is that some clusters have disappeared, namely the ![#ff0](https://placehold.it/15/ff0/000000?text=+) entertainment and ![#b0b](https://placehold.it/15/b0b/000000?text=+) Anglo-Saxon academia. By looking closer, we can still find remains of these groups but they have been absorbed by the bigger fishes of ![#f90](https://placehold.it/15/8f8/000000?text=+) French tech and  ![#00f](https://placehold.it/15/00f/000000?text=+) French academia, respectively.     
+
+
+#### Statistics
+
+| Statistics | Value | 
+| ------------- |:-------------:| 
+| Nodes | 839 |
+| Edges | 10614 |
+| Diameter | 8 |
+| Average path length | 3.4 |
+| Average degree | 12.65 |
+| Average clustering coefficient| 0.316 |  
+
+
+
 
 
 ## Usage
 
+
+
 ### Step 1. Get the data
 
-To get access to the Twitter API, you must first register on the [Twitter Developer Portal](https://developer.twitter.com/en/apps), before filling your authentication keys in `credentials.json`.
+To get access to the Twitter API, you must first register on the [Twitter Developer Portal](https://developer.twitter.com/en/apps), and record your authentication keys in `credentials.json`.
 
-The, run the script `python3 fetch_data.py`.
+Then, install requirements with
+```pip3 install -r requirements.txt```
+
+and finally run the script. ```python3 fetch_data.py```
 ```shell
 Usage: fetch_data [options]
 
 Options:
   -h --help              Show this screen.
-  --screen-name <name>   User's screen name.
+  --screen-name <name>   Screen name of the user to query. By default, the account used for authentication to the API.
   --graph-nodes <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
+  --edges-ratio <ratio>  Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
   --credentials <file>   Path of the credentials for Twitter API [default: credentials.json].
   --cache <path>         Path of the user's friends cache [default: cache].
   --out <path>           Path of the graph files [default: out/graph].
   --stop-on-rate-limit   Stop fetching data and export the graph when reaching the rate limit of Twitter API.
+  --run-http-server      Run an HTTP server to visualize the graph in you browser with d3.js.
 ```
 
-The script should start by getting the list of your friends and followers, before going through these accounts one by one in order to build the edges of the graph.
+The script will start by getting the list of your friends and followers, before going through these accounts one by one in order to build the edges of the graph.
 
 ```
+Found 841 followers.
+Found 2406 friends.
 [1/2406] Fetching friends of @Mehdi_Moussaid
 [2/2406] Fetching friends of @Inria_Lille
 [3/2406] Fetching friends of @Limericking
@@ -106,27 +150,42 @@ python3 fetch_data.py
 [4/2406] Fetching friends of @Ariane_lis
 ```
 
-### Step 2. (optional) Visualize with d3.js
+If you are too impatient and want to preview the graph with the data downloaded so far, use the `--stop-on-rate-limit` option.
 
-When the dataset has been fetched, the resulting graph will be exported to two csv files containing the nodes and edges.
-It can be visualized directly in your browser with [d3-force](https://github.com/d3/d3-force).
+The resulting graph will be exported to two .csv files containing the nodes and edges.
+```
+[4/2406] Fetching friends of @Ariane_lis
+...but it failed. Error: [{'message': 'Rate limit exceeded', 'code': 88}]
+You reached the rate limit. Disable --stop-on-rate-limit or try again later.
+Successfully exported 2406 nodes to out\graph.nodes.csv.
+Successfully exported 128 edges to out\graph.edges.csv.
+```
 
-To that end, an HTTP server will start at the end of the script.
+### Step 2. (optional) Visualize with [d3.js](https://d3js.org/)
+
+
+Once exported, the graph can be visualized directly in your browser with [d3-force](https://github.com/d3/d3-force).
+
+To that end, use the ``--run-http-server`` to automatically spawn an HTTP server at the end of the script.
 ```
 [2406/2406] Fetching friends of @AdrienRahier
-Successfully exported 94 nodes to out\graph.nodes.csv.
-Successfully exported 111 edges to out\graph.edges.csv.
+Successfully exported 2406 nodes to out\graph.nodes.csv.
+Successfully exported 107697 edges to out\graph.edges.csv.
 Serving HTTP at http://localhost:8000?nodes=out/graph.nodes.csv&edges=out/graph.edges.csv
 ```
 
-### Step 2 (bis). Visualize with Gephi
+Open the URL in your browser to see the results. While [d3-force](https://github.com/d3/d3-force) is lightweight and convenient, it can be a bit slow when the graph becomes too large (about 2000 nodes on my computer), and will only handle the graph layout.
+For more advanced customization options, you can turn to Gephi. 
 
-Gephi is a software for...
-Refer to the documentation.
+### Step 2. (bis) Visualize with [Gephi](https://gephi.org/)
 
-I will simply recall the main steps. 
+ 
+> [Gephi](https://gephi.org/) is the leading visualization and exploration software for all kinds of graphs and networks. Gephi is open-source and free.
+ 
+The [User Guide](https://gephi.org/users/) contains all the information that you need, and I recommend that you read the [Quick Start Guide](https://gephi.org/users/quick-start/).
+I will simply recall the main steps involved. 
 
-### 1. Import nodes
+#### 1. Import nodes
 
 * Start a new project;
 * go to the the *Data Laboratory* tab;
@@ -136,7 +195,7 @@ I will simply recall the main steps.
 
 A table of nodes should appear in the Data Laboratory.
 
-### 2. Import edges
+#### 2. Import edges
 
 * select again *Import Spreadsheet* in the toolbar, and choose `out/graph.edges.csv`;
 * in the *General Options* pane, select _Import as: Edges table_ **(not Matrix)**, then click Next and Finish;
@@ -145,32 +204,32 @@ A table of nodes should appear in the Data Laboratory.
 
 A table of edges should appear in the Data Laboratory.
 
-### 3. Choose a layout
+#### 3. Choose a layout
 
 * Go back to the *Overview* tab. You should see the graph with a random square layout;
-* In the *Layout* window, select a force-based layout, and click *Run*. I use ForceAtlas2 [Jacomy M. et. al., 2014];
-* You can tinker with the layout parameters, such as *Dissuade Hubs* or *Prevent Overlap*.
+* In the *Layout* window, select a force-based layout, and click *Run*. I use ForceAtlas2 [4];
+* You can tinker with the layout parameters, such as *strength*, *Dissuade Hubs* or *Prevent Overlap*.
 
 The graph will reorganise so that connected nodes are closer, and you should see the emergence of clusters.
 
-### 4. Set the nodes sizes
+#### 4. Set the nodes sizes
 
-As mentioned above, I use PageRank to set the nodes sizes.
+As mentioned above, I use PageRank [3] to set the nodes sizes.
 * First, the PageRank of nodes must be computed. In the *Statistics* window, locate *Network Overview/PageRank* and click Run. Keep default parameters and close the report;
 * In the *Appearance* window, select *Nodes* and *Size* in the toolbar, and than select *Ranking*. Select the range of sizes (I use 10-50), and click Apply.  
 
 The nodes labels can be enabled by clicking the black `T` icon in the bottom *Overview* toolbar. Then, the labels can be scaled with node size  by selecting the `A` icon (Size mode) and choosing Node size.  
 
-### 4. Set the nodes colours
+#### 4. Set the nodes colors
 
-The nodes can be coloured automatically in the Appearance/Nodes/Colour tab, by either a Partition of attributes (e.g. verified or location), or by a Ranking of attributes (e.g.  Degree, In-Degree, Out-Degree, followers_count, etc.).
+The nodes can be colored automatically in the Appearance/Nodes/Color tab, by either a Partition of attributes (e.g. verified or location), or by a Ranking of attributes (e.g.  Degree, In-Degree, Out-Degree, followers_count, etc.).
 
 In order to identify clusters, we must first run the *Modularity* algorithm from the Statistics window. Use the *Resolution* parameter to tune the desired number of clusters.
-Then, set the nodes colour in the Appearance window by Ranking of Modularity.
+Then, set the nodes colours in the Appearance window by Ranking of Modularity.
 
-### 5. Render
+#### 5. Render
 
-Go to the Preview window, select the desired options, and Export to png or pdf.
+Go to the Preview window, select the desired options, and Export to png, pdf or svg.
 
 
 ## References
