@@ -3,7 +3,7 @@ Usage: fetch_data [options]
 
 Options:
   -h --help              Show this screen.
-  --screen-name <name>   User's screen name.
+  --screen-name <name>   Screen name of the user to query. By default, the account used for authentication to the API.
   --graph-nodes <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
   --edges-ratio <ratio>  Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
   --credentials <file>   Path of the credentials for Twitter API [default: credentials.json].
@@ -11,7 +11,8 @@ Options:
   --out <path>           Path of the graph files [default: out/graph].
   --stop-on-rate-limit   Stop fetching data and export the graph when reaching the rate limit of Twitter API.
 """
-from http.server import HTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
+from functools import partial
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 import requests
 import twitter
@@ -25,19 +26,22 @@ TWITTER_RATE_LIMIT_ERROR = 88
 EXCLUDED = ["TayeDiggs", "RauliMrd"]
 
 
-def fetch_users(api, cache, followers_file="followers.json", friends_file="friends.json"):
+def fetch_users(api, user, cache, followers_file="followers.json", friends_file="friends.json"):
     """
         Fetch the lists of followers and friends from Twitter API.
 
         Both lists are cached in json files.
     :param twitter.Api api: a Twitter API instance
+    :param str user: screen-name of the user to query. If None, the authenticated user.
     :param Path cache: the path to a cache directory
     :param str followers_file: the followers filename in the cache
     :param str friends_file: the friends filename in the cache
     :return: followers, friends, intersection of both, and union of both
     """
-    followers = get_or_set(cache / followers_file, api.GetFollowers, api_function=True)
-    friends = get_or_set(cache / friends_file, api.GetFriends, api_function=True)
+    followers = get_or_set(cache / followers_file, partial(api.GetFollowers, screen_name=user), api_function=True)
+    print("Found {} followers.".format(len(followers)))
+    friends = get_or_set(cache / friends_file, partial(api.GetFriends, screen_name=user), api_function=True)
+    print("Found {} friends.".format(len(friends)))
     followers_ids = [user["id"] for user in followers]
     mutuals = [user for user in friends if user["id"] in followers_ids]
     all_users = followers + [user for user in friends if user["id"] not in followers_ids]
@@ -158,12 +162,12 @@ def main():
                       sleep_on_rate_limit=not options["--stop-on-rate-limit"])
 
     try:
-        followers, friends, mutuals, all_users = fetch_users(api, Path(options["--cache"]))
+        followers, friends, mutuals, all_users = fetch_users(api, options["--screen-name"], Path(options["--cache"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
                  "few": random.choices(followers, k=100)}[options["--graph-nodes"]]
         friendships = fetch_friendships(api, users, Path(options["--cache"]), friends_restricted_to=all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
-                              edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
+                      edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
         serve_http(Path(options["--out"]))
     except requests.exceptions.ConnectionError as e:
         print(e)  # Why do I get these?
