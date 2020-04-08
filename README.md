@@ -119,14 +119,14 @@ Then, install requirements with
 ```pip3 install -r requirements.txt```
 
 and finally run the script. ```python3 fetch_data.py```
-```shell
+```
 Usage: fetch_data [options]
 
 Options:
   -h --help              Show this screen.
-  --screen-name <name>   Screen name of the user to query. By default, the account used for authentication to the API.
+  --screen-name <name>   Screen name of the user. By default, the account used for authentication to the API.
   --graph-nodes <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
-  --edges-ratio <ratio>  Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
+  --edges-ratio <ratio>  Ratio of edges to export in the graph (sampled among non-mutuals). [default: 1].
   --credentials <file>   Path of the credentials for Twitter API [default: credentials.json].
   --cache <path>         Path of the user's friends cache [default: cache].
   --out <path>           Path of the graph files [default: out/graph].
