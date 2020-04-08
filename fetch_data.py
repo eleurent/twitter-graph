@@ -7,6 +7,7 @@ Options:
   --graph-nodes <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
   --edges-ratio <ratio>  Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
   --credentials <file>   Path of the credentials for Twitter API [default: credentials.json].
+  --excluded <file>      Path of the list of excluded users [default: excluded.json].
   --cache <path>         Path of the user's friends cache [default: cache].
   --out <path>           Path of the graph files [default: out/graph].
   --stop-on-rate-limit   Stop fetching data and export the graph when reaching the rate limit of Twitter API.
@@ -24,7 +25,6 @@ from docopt import docopt
 from pathlib import Path
 
 TWITTER_RATE_LIMIT_ERROR = 88
-EXCLUDED = ["TayeDiggs", "RauliMrd"]
 
 
 def fetch_users(api, user, cache, followers_file="followers.json", friends_file="friends.json"):
@@ -49,11 +49,12 @@ def fetch_users(api, user, cache, followers_file="followers.json", friends_file=
     return followers, friends, mutuals, all_users
 
 
-def fetch_friendships(api, users, cache, friends_restricted_to=None, friendships_file="friendships.json"):
+def fetch_friendships(api, users, excluded, cache, friends_restricted_to=None, friendships_file="friendships.json"):
     """
         Fetch the friends of a list of users from Twitter API
     :param twitter.Api api: a Twitter API instance
     :param list users: the users whose friends to look for
+    :param list excluded: path to a file containing the screen names of users whose friends not to look for
     :param Path cache: the path to a cache directory
     :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
@@ -62,8 +63,9 @@ def fetch_friendships(api, users, cache, friends_restricted_to=None, friendships
     friends_restricted_to = friends_restricted_to if friends_restricted_to else users
     friendships = get_or_set(cache / "friendships.json", {})
     users_ids = set([str(user["id"]) for user in friends_restricted_to])
+    excluded = get_or_set(excluded, [])
     for i, user in enumerate(users):
-        if user["screen_name"] in EXCLUDED:
+        if user["screen_name"] in excluded:
             continue
         if str(user["id"]) in friendships:
             print("[{}/{}] @{} found in cache.".format(i+1, len(users), user["screen_name"]))
@@ -168,7 +170,8 @@ def main():
         followers, friends, mutuals, all_users = fetch_users(api, options["--screen-name"], Path(options["--cache"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
                  "few": random.choices(followers, k=100)}[options["--graph-nodes"]]
-        friendships = fetch_friendships(api, users, Path(options["--cache"]), friends_restricted_to=all_users)
+        friendships = fetch_friendships(api, users, Path(options["--excluded"]), Path(options["--cache"]),
+                                        friends_restricted_to=all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
                       edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
         if options["--run-http-server"]:
