@@ -1,25 +1,19 @@
 # twitter-graph
 
-
-
 I spend a lot of time on Twitter, and over the years I have been following a wide variety of people: old friends, work colleagues, funny accounts, etc.
 Gradually, my timeline has become this messy mix that makes Twitter so enjoyable. 
 
 Wouldn't it be be nice, though, to have some hindsight and perspective on what's actually going on?
 
-
 Contents | [Example](#behold-the-graph-of-my-twitter-friends) | [Usage](#usage) | [References](#references) | [Credits](#credits)
 
-
 ## Behold: the graph of my Twitter friends
-
 
 ![Friends](examples/friends/friends_1080p.jpg)
 
 <p align="center">
 <em>My twitter world litterally looks like a world map, which is fantastic!</em>
 </p>
-
 
 #### Download
 
@@ -49,7 +43,9 @@ The size of the nodes represents which accounts are the most popular *according 
  
 Intuitively, a *popular* account is followed by many other *popular* accounts. Popularity is also related the probability of reaching a node by walking randomly in the graph. The PageRank algorithm [3], used in search engines, provides such a metric. 
 
-<img align="center" width="430" height="270" src="https://raw.githubusercontent.com/eleurent/twitter-graph/master/examples/friends/friends_label_4320p.jpg">
+<p align="center">
+  <img width="460" height="300" src="https://raw.githubusercontent.com/eleurent/twitter-graph/master/examples/friends/friends_label_4320p.jpg">
+</p>
 
 On this graph the results are reasonable: accounts with many followers such as [@elonmusk](https://twitter.com/elonmusk), [@ylecunn](https://twitter.com/ylecun) and [@snowden](https://twitter.com/snowden) end up with a high PageRank. But the structure of the network also plays an important part, since by only relying on the number of followers, accounts such as [@TheRealJimCarey](https://twitter.com/TheRealJimCarey), [@RobertDowneyJr](https://twitter.com/RobertDowneyJr), [@tomhanks](https://twitter.com/tomhanks) would be very salient while they barely stand out in terms of PageRank.
 
@@ -57,8 +53,8 @@ On this graph the results are reasonable: accounts with many followers such as [
 
 Instead of scaling the nodes by popularity, we can also look for nodes that are in-between several communities, and connect them together. It is measured by the Betweenness Centrality, which measures how often a node appears on shortest paths between nodes of the Network.
  
-<p align="center>
-<img  align="center" width="430" height="270" src="https://raw.githubusercontent.com/eleurent/twitter-graph/master/examples/friends/friends_hubs_4320p.jpg">
+<p align="center">
+  <img width="460" height="300" src="https://raw.githubusercontent.com/eleurent/twitter-graph/master/examples/friends/friends_hubs_4320p.jpg">
 </p>
 
 For instance, we see accounts that belong to both the AI/ML research and French academia stand out, like [@freakonometrics](https://twitter.com/freakonometrics) and [@bguedj](https://twitter.com/bguedj), or people like [@chr1sa](https://twitter.com/chr1sa) who is in-between drones and Silicon Valley clusters. 
