@@ -2,17 +2,31 @@
 
 Fetch and visualize the graph of you twitter friends and followers.
 
-## Example: my own Twitter graph
+## Example: my graph
 
-Twitter is a place where I 
+I spend a lot of time on Twitter, and over the years I have been following a wide variety of people: old friends, work colleagues, funny accounts, etc.
+Thus, my timeline has become a little bit messy and it would be great to have some hindsight and perspective on what's actually going on.
 
-Here is what the graph of my Twitter friends looks like.
+<p align="center">
+   <b>Behold: the graph of my Twitter friends</b>
+</p>
+ 
+ 
 
-![Friends HD](examples/friends/friends_hd.jpg)
+![Friends HD](examples/friends/friends_1080p.png)
+
+_My twitter world litterally looks like a world map, which is fantastic!_
+
+### Download
+
+| Original | [1080p](examples/friends/friends_1080p.png) | [2160p](examples/friends/friends_2160p.png) | [4320p](examples/friends/friends_4320p.jpg) | [8640p](examples/friends/friends_8640p.jpg) |  [pdf](examples/friends/friends.pdf) |
+| ---- |:-----:|:-----:|:-----:|:-----:|:-----:|  
+| Labeled | [1080p](examples/friends/friends_label_1080p.png) | [2160p](examples/friends/friends_label_2160p.png) | [4320p](examples/friends/friends_label_4320p.jpg) | [8640p](examples/friends/friends_label_8640p.jpg) | [pdf](examples/friends/friends_label.pdf) |
+| Hubs | [1080p](examples/friends/friends_hubs_1080p.png) | [2160p](examples/friends/friends_hubs_2160p.png) | [4320p](examples/friends/friends_hubs_4320p.jpg) | [8640p](examples/friends/friends_hubs_8640p.jpg) | [pdf](examples/friends/friends_hubs.pdf) | 
 
 ### Clusters
 
-By running a clustering algorithm, several communities are automatically discovered: 
+By running a clustering algorithm [1, 2], several communities are automatically discovered: 
 * ![#00f](https://placehold.it/15/00f/000000?text=+) the French Academia;
 * ![#f00](https://placehold.it/15/f00/000000?text=+) the Machine Learning research community;
 * ![#0ff](https://placehold.it/15/0ff/000000?text=+) software engineers, mainly from my internship at Twitter, and silicon valley startups;
@@ -27,14 +41,26 @@ Zooming in, we can find additional smaller clusters:
 
 ### Popular accounts
 
-Given this graph, we can compute which account are the most popular. I use PageRank to estimate. It is related to the probability of reaching an account by following a random path in the graph.
+We can find out which accounts are the most popular *according to this graph*.  That is, not by ranking by the number of followers for instance, but rather 
+
+I use PageRank to estimate. It is related to the probability of reaching an account by following a random path in the graph.
+
+Nothing too surprising but different from number of followers
 
 ### Hubs
 
 People between several communities.
 
 
-### 
+### Statistics
+
+| Statistics | Value | 
+| ------------- |:-------------:| 
+| Nodes | 2412 |
+| Edges | 107697 |
+| Diameter | 9 |
+| Average path length | 3.1 |
+| Average degree | 44.65 | 
 
 
 ## Usage
@@ -148,7 +174,8 @@ Go to the Preview window, select the desired options, and Export to png or pdf.
 ## References
 * [1] [Fast unfolding of communities in large networks](https://arxiv.org/abs/0803.0476), Blondel V. et al. (2008).
 * [2] [Laplacian Dynamics and Multiscale Modular Structure in Networks](https://arxiv.org/abs/0812.1770), Lambiotte R. et al. (2008).
-* [3] [Continuous Graph Layout Algorithm for Handy Network Visualization Designed for the Gephi Software](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0098679), Jacomy M. et al. (2014).
+* [3] [Sergey Brin, Lawrence Page, The Anatomy of a Large-Scale Hypertextual Web Search Engine](https://snap.stanford.edu/class/cs224w-readings/Brin98Anatomy.pdf), Brin S., Page L. (1998).
+* [4] [Continuous Graph Layout Algorithm for Handy Network Visualization Designed for the Gephi Software](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0098679), Jacomy M. et al. (2014).
 
 ## Credits
 
