@@ -41,7 +41,7 @@ As we zoom in closer, we can find additional smaller clusters:
 * ![#f90](https://placehold.it/15/f90/000000?text=+) the SequeL lab, where I am doing my PhD, and French researchers in theoretical ML
 * ![#b0b](https://placehold.it/15/b0b/000000?text=+) Anglo-Saxon academia;
 * ![#09f](https://placehold.it/15/09f/000000?text=+) students and staff of Mines ParisTech, my university;
-* ![#f90](https://placehold.it/15/8f8/000000?text=+) French tech, startups and entrepreneurs
+* ![#cf5](https://placehold.it/15/cf5/000000?text=+) French tech, startups and entrepreneurs
 
 #### Popular accounts
 
@@ -50,7 +50,7 @@ The size of the nodes represents which accounts are the most popular *according 
 Intuitively, a *popular* account is followed by many other *popular* accounts. Popularity is also related the probability of reaching a node by walking randomly in the graph. The PageRank algorithm [3], used in search engines, provides such a metric. 
 
 <p align="center>
-<img src="examples/friends/friends_label_4320p.jpg" width="430" height="270" />
+<img src="https://raw.githubusercontent.com/eleurent/twitter-graph/examples/friends/friends_label_4320p.jpg" width="430" height="270" />
 </p>
 
 On this graph the results are reasonable: accounts with many followers such as [@elonmusk](https://twitter.com/elonmusk), [@ylecunn](https://twitter.com/ylecun) and [@snowden](https://twitter.com/snowden) end up with a high PageRank. But the structure of the network also plays an important part, since by only relying on the number of followers, accounts such as [@TheRealJimCarey](https://twitter.com/TheRealJimCarey), [@RobertDowneyJr](https://twitter.com/RobertDowneyJr), [@tomhanks](https://twitter.com/tomhanks) would be very salient while they barely stand out in terms of PageRank.
@@ -60,10 +60,10 @@ On this graph the results are reasonable: accounts with many followers such as [
 Instead of scaling the nodes by popularity, we can also look for nodes that are in-between several communities, and connect them together. It is measured by the Betweenness Centrality, which measures how often a node appears on shortest paths between nodes of the Network.
  
 <p align="center>
-<img src="examples/friends/friends_hubs_4320p.jpg" width="430" height="270" />
+<img src="https://raw.githubusercontent.com/eleurent/twitter-graph/examples/friends/friends_hubs_4320p.jpg" width="430" height="270" />
 </p>
 
-We can see...
+For instance, we see accounts that belong to both the AI/ML research and French academia stand out, like [@freakonometrics](https://twitter.com/freakonometrics) and [@bguedj](https://twitter.com/bguedj), or people like [@chr1sa](https://twitter.com/chr1sa) who is in-between drones and Silicon Valley clusters. 
 
 #### Statistics
 
@@ -81,8 +81,7 @@ We can see...
 ![Friends](examples/followers/followers_1080p.jpg)
 
 The first thing we can notice is that this graph looks more clustered than the previous one, which is confirmed by a higher average clustering coefficient.
-
-Another observation is that some clusters have disappeared, namely the ![#ff0](https://placehold.it/15/ff0/000000?text=+) entertainment and ![#b0b](https://placehold.it/15/b0b/000000?text=+) Anglo-Saxon academia. By looking closer, we can still find remains of these groups but they have been absorbed by the bigger fishes of ![#f90](https://placehold.it/15/8f8/000000?text=+) French tech and  ![#00f](https://placehold.it/15/00f/000000?text=+) French academia, respectively.     
+Some clusters also seem to have disappeared, namely the ![#ff0](https://placehold.it/15/ff0/000000?text=+) entertainment and ![#b0b](https://placehold.it/15/b0b/000000?text=+) Anglo-Saxon academia.     
 
 #### Downloads
 
@@ -105,11 +104,7 @@ Another observation is that some clusters have disappeared, namely the ![#ff0](h
 
 
 
-
-
 ## Usage
-
-
 
 ### Step 1. Get the data
 
