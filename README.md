@@ -44,7 +44,7 @@ The size of the nodes represents which accounts are the most popular *according 
 Intuitively, a *popular* account is followed by many other *popular* accounts. Popularity is also related the probability of reaching a node by walking randomly in the graph. The PageRank algorithm [3], used in search engines, provides such a metric. 
 
 <p align="center">
-  <a href="https://raw.githubusercontent.com/eleurent/twitter-graph/master/examples/friends/friends_label_8640p.jpg"><img width="460" height="300" src="https://raw.githubusercontent.com/eleurent/twitter-graph/master/examples/friends/friends_label_1080p.jpg"></a>
+  <a href="https://raw.githubusercontent.com/eleurent/twitter-graph/master/examples/friends/friends_label_8640p.png"><img width="460" height="300" src="https://raw.githubusercontent.com/eleurent/twitter-graph/master/examples/friends/friends_label_1080p.jpg"></a>
 </p>
 
 On this graph the results are reasonable: accounts with many followers such as [@elonmusk](https://twitter.com/elonmusk), [@ylecunn](https://twitter.com/ylecun) and [@snowden](https://twitter.com/snowden) end up with a high PageRank. But the structure of the network also plays an important part, since by only relying on the number of followers, accounts such as [@TheRealJimCarey](https://twitter.com/TheRealJimCarey), [@RobertDowneyJr](https://twitter.com/RobertDowneyJr), [@tomhanks](https://twitter.com/tomhanks) would be very salient while they barely stand out in terms of PageRank.
