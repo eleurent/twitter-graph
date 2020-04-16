@@ -176,7 +176,7 @@ def main():
                       edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
         if options["--run-http-server"]:
             serve_http(Path(options["--out"]))
-    except requests.exceptions.ConnectionError as e:
+    except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
         print(e)  # Why do I get these?
         main()  # Retry!
 
