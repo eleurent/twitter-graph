@@ -102,7 +102,7 @@ Some clusters also seem to have disappeared, namely the ![#ff0](https://placehol
 
 ### Step 1. Get the data
 
-To get access to the Twitter API, you must first register on the [Twitter Developer Portal](https://developer.twitter.com/en/apps), and record your authentication keys in `credentials.json`.
+To get access to the Twitter API, you must first register on the [Twitter Developer Portal](https://developer.twitter.com/en/apps). Then, create an app (with read permissions) and record your authentication keys in `credentials.json`.
 
 Then, install requirements with
 ```pip3 install -r requirements.txt```
@@ -157,6 +157,8 @@ Successfully exported 2406 nodes to out\graph.nodes.csv.
 Successfully exported 128 edges to out\graph.edges.csv.
 ```
 
+Finally, note that you can skip an account by filling out the `exclude.json` file.
+
 ### Step 2. (optional) Visualize with [d3.js](https://d3js.org/)
 
 
@@ -207,12 +209,13 @@ A table of edges should appear in the Data Laboratory.
 * You can tinker with the layout parameters, such as *strength*, *Dissuade Hubs* or *Prevent Overlap*.
 
 The graph will reorganise so that connected nodes are closer, and you should see the emergence of clusters.
+Once the graph has converged, stop the simulation.
 
 #### 4. Set the nodes sizes
 
 As mentioned above, I use PageRank [3] to set the nodes sizes.
 * First, the PageRank of nodes must be computed. In the *Statistics* window, locate *Network Overview/PageRank* and click Run. Keep default parameters and close the report;
-* In the *Appearance* window, select *Nodes* and *Size* in the toolbar, and than select *Ranking*. Select the range of sizes (I use 10-50), and click Apply.  
+* In the *Appearance* window, select *Nodes* and *Size* in the toolbar. Then, select *Ranking*, *PageRank*. Select the range of sizes (I use 10-50), and click Apply.  
 
 The nodes labels can be enabled by clicking the black `T` icon in the bottom *Overview* toolbar. Then, the labels can be scaled with node size  by selecting the `A` icon (Size mode) and choosing Node size.  
 
@@ -226,6 +229,17 @@ Then, set the nodes colours in the Appearance window by Ranking of Modularity.
 #### 5. Render
 
 Go to the Preview window, select the desired options, and Export to png, pdf or svg.
+
+#### 6. (optional) Exclude the very far nodes
+
+In order to improve the final Render, it might be useful to exclude the very far nodes.
+To do this, go to the Overview tab, click on *Filters* (right panel). Open *Topology* and double-click on *Giant Component*.
+Just below, in the *Queries* panel, activate this filter by pressing the *Filter* button. You should now be able to see in the *Context* panel at the top the percentage of nodes visible.
+
+#### 7. (optional) Display Twitter Handles rather than names on the Graph
+
+An easy solution for this is to go to the Data Laboratory tab. Click at the bottom on the *Copy data to other column* button. Select *screen_name* to *Label*. 
+If you return now to the Overview tab you will see the Twitter's handle as labels.
 
 
 ## References
