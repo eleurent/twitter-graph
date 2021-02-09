@@ -169,7 +169,7 @@ def main():
     try:
         followers, friends, mutuals, all_users = fetch_users(api, options["--screen-name"], Path(options["--cache"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
-                 "few": random.choices(followers, k=100)}[options["--graph-nodes"]]
+                 "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
         friendships = fetch_friendships(api, users, Path(options["--excluded"]), Path(options["--cache"]),
                                         friends_restricted_to=all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
