@@ -25,17 +25,17 @@ Contents | [Example](#behold-the-graph-of-my-twitter-friends) | [Usage](#usage) 
 #### Clusters
 
 By running a clustering algorithm [1, 2], several communities are automatically discovered: 
-* ![#f00](https://placehold.it/15/f00/000000?text=+) the Machine Learning research community;
-* ![#00f](https://placehold.it/15/00f/000000?text=+) French academia;
-* ![#0ff](https://placehold.it/15/0ff/000000?text=+) software engineers, mainly from my internship at Twitter, and silicon valley startups;
-* ![#0f0](https://placehold.it/15/0f0/000000?text=+) the Drone community, from my time at Parrot;
-* ![#ff0](https://placehold.it/15/ff0/000000?text=+) entertainment accounts: youtubers, cartoonists, video games.
+* ![#f00](https://place-hold.it/15/f00/000000?text=+) the Machine Learning research community;
+* ![#00f](https://place-hold.it/15/00f/000000?text=+) French academia;
+* ![#0ff](https://place-hold.it/15/0ff/000000?text=+) software engineers, mainly from my internship at Twitter, and silicon valley startups;
+* ![#0f0](https://place-hold.it/15/0f0/000000?text=+) the Drone community, from my time at Parrot;
+* ![#ff0](https://place-hold.it/15/ff0/000000?text=+) entertainment accounts: youtubers, cartoonists, video games.
 
 As we zoom in closer, we can find additional smaller clusters:
-* ![#f90](https://placehold.it/15/f90/000000?text=+) the SequeL lab, where I am doing my PhD, and French researchers in theoretical ML
-* ![#b0b](https://placehold.it/15/b0b/000000?text=+) Anglo-Saxon academia;
-* ![#09f](https://placehold.it/15/09f/000000?text=+) students and staff of Mines ParisTech, my university;
-* ![#cf5](https://placehold.it/15/cf5/000000?text=+) French tech, startups and entrepreneurs
+* ![#f90](https://place-hold.it/15/f90/000000?text=+) the SequeL lab, where I am doing my PhD, and French researchers in theoretical ML
+* ![#b0b](https://place-hold.it/15/b0b/000000?text=+) Anglo-Saxon academia;
+* ![#09f](https://place-hold.it/15/09f/000000?text=+) students and staff of Mines ParisTech, my university;
+* ![#cf5](https://place-hold.it/15/cf5/000000?text=+) French tech, startups and entrepreneurs
 
 #### Popular accounts
 
