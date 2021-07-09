@@ -5,19 +5,16 @@ Fetch a list of users from Twitter API.
 - In the user mode, <query> refers to a username, and we get their friends and followers.
 - In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
 
-To build a search query you can use Twitter’s Advanced Search tool: https://twitter.com/search-advanced, and then use
-the part of search URL after the “?” starting with "q=" and removing the "&src=typed_query" portion.
-
 Options:
-  -h --help              Show this screen.
-  --graph-nodes <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
-  --edges-ratio <ratio>  Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
-  --credentials <file>   Path of the credentials for Twitter API [default: credentials.json].
-  --excluded <file>      Path of the list of excluded users [default: excluded.json].
-  --cache <path>         Path of the user's friends cache [default: cache].
-  --out <path>           Path of the graph files [default: out/graph].
-  --stop-on-rate-limit   Stop fetching data and export the graph when reaching the rate limit of Twitter API.
-  --run-http-server      Run an HTTP server to visualize the graph in you browser with d3.js.
+  -h --help                   Show this screen.
+  --max-tweets-count <type>   Maximum number of tweets to fetch before stopping. [default: 2500].
+  --graph-nodes <type>        Nodes to consider in the graph: friends, followers or all. [default: followers].
+  --edges-ratio <ratio>       Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
+  --credentials <file>        Path of the credentials for Twitter API [default: credentials.json].
+  --excluded <file>           Path of the list of excluded users [default: excluded.json].
+  --out <path>                Directory of output files [default: out].
+  --stop-on-rate-limit        Stop fetching data and export the graph when reaching the rate limit of Twitter API.
+  --run-http-server           Run an HTTP server to visualize the graph in you browser with d3.js.
 """
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -33,10 +30,10 @@ from pathlib import Path
 TWITTER_RATE_LIMIT_ERROR = 88
 
 
-def fetch_users(api, user, search_query, cache,
-                followers_file="followers.json",
-                friends_file="friends.json",
-                tweets_file="tweets.json"):
+def fetch_users(api, user, search_query, max_tweets_count, out_path,
+                followers_file="cache/followers.json",
+                friends_file="cache/friends.json",
+                tweets_file="cache/tweets.json"):
     """
         Fetch a list of users from Twitter API.
 
@@ -47,30 +44,28 @@ def fetch_users(api, user, search_query, cache,
         The tweets, friends and followers are all cached in json files.
 
     :param twitter.Api api: a Twitter API instance
-    :param str user: screen-name of the user to query
-    :param str search_query: a search query, starting by "q="
-           for example, "q=twitter%20&result_type=recent&since=2014-07-19&count=100"
-           see more details on https://dev.twitter.com/rest/public/search
-    :param Path cache: the path to a cache directory
+    :param str user: screen-name of a user
+    :param str search_query: a search query
+    :param int max_tweets_count: maximum number of tweets fetched
+    :param Path out_path: the path to the output directory
     :param str followers_file: the followers filename in the cache
     :param str friends_file: the friends filename in the cache
     :param str tweets_file: the tweets filename in the cache
     :return: followers, friends, intersection of both, and union of both
     """
     if search_query:
-        tweets = get_or_set(cache / tweets_file, partial(api.GetSearch, raw_query=search_query), api_function=True)
-        # TODO: implement a pagination mechanism
-        #  see https://developer.twitter.com/en/docs/twitter-api/tweets/search/integrate/paginate
-        print("Found {} tweets.".format(len(tweets)))
-        followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
+        tweets = get_or_set(out_path / tweets_file,
+                            partial(fetch_tweets, search_query=search_query, api=api, max_count=max_tweets_count),
+                            api_function=True)
         # TODO: remove duplicate authors
-        print("Found {} authors.".format(len(tweets)))
-        get_or_set(cache / followers_file, followers, api_function=False)
+        followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
+        # print("Found {} authors.".format(len(tweets)))
+        get_or_set(out_path / followers_file, followers, api_function=False)
         friends = []
     else:
-        followers = get_or_set(cache / followers_file, partial(api.GetFollowers, screen_name=user), api_function=True)
+        followers = get_or_set(out_path / followers_file, partial(api.GetFollowers, screen_name=user), api_function=True)
         print("Found {} followers.".format(len(followers)))
-        friends = get_or_set(cache / friends_file, partial(api.GetFriends, screen_name=user), api_function=True)
+        friends = get_or_set(out_path / friends_file, partial(api.GetFriends, screen_name=user), api_function=True)
         print("Found {} friends.".format(len(friends)))
     followers_ids = [user["id"] for user in followers]
     mutuals = [user for user in friends if user["id"] in followers_ids]
@@ -78,19 +73,19 @@ def fetch_users(api, user, search_query, cache,
     return followers, friends, mutuals, all_users
 
 
-def fetch_friendships(api, users, excluded, cache, friends_restricted_to=None, friendships_file="friendships.json"):
+def fetch_friendships(api, users, excluded, out, friends_restricted_to=None, friendships_file="cache/friendships.json"):
     """
         Fetch the friends of a list of users from Twitter API
     :param twitter.Api api: a Twitter API instance
     :param list users: the users whose friends to look for
     :param list excluded: path to a file containing the screen names of users whose friends not to look for
-    :param Path cache: the path to a cache directory
+    :param Path out: the path to output directory
     :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
     :return dict: a dict of friendships in the form {user_id: [list of friends ids]}
     """
     friends_restricted_to = friends_restricted_to if friends_restricted_to else users
-    friendships = get_or_set(cache / "friendships.json", {})
+    friendships = get_or_set(out / friendships_file, {})
     users_ids = set([str(user["id"]) for user in friends_restricted_to])
     excluded = get_or_set(excluded, [])
     for i, user in enumerate(users):
@@ -110,8 +105,25 @@ def fetch_friendships(api, users, excluded, cache, friends_restricted_to=None, f
                     break
             common_friends = set(user_friends).intersection(users_ids)
             friendships[user["id"]] = list(common_friends)
-            get_or_set(cache / friendships_file, friendships, force=True)
+            get_or_set(out / friendships_file, friendships, force=True)
     return friendships
+
+
+def fetch_tweets(search_query, api, max_count=2000):
+    all_tweets, max_id = [], None
+    while len(all_tweets) < max_count:
+        tweets = api.GetSearch(term=search_query,
+                               count=100,
+                               result_type="recent",
+                               max_id=max_id)
+        all_tweets.extend(tweets)
+        print(f"Found {len(all_tweets)}/{max_count} tweets.")
+        if not tweets:
+            print("Done: no more tweets.")
+            break
+        max_id = min(tweet.id for tweet in tweets)
+    print(f"First & last tweet dates are: {all_tweets[0].created_at} - {all_tweets[-1].created_at}")
+    return all_tweets
 
 
 # noinspection PyProtectedMember
@@ -145,7 +157,7 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
     users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
     users_df["Label"] = users_df["name"]
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    nodes_path = out_path.with_suffix(".nodes.csv")
+    nodes_path = out_path / "nodes.csv"
     users_df.to_csv(nodes_path, index_label="Id")
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
     users_ids = [user["id_str"] for user in users]
@@ -166,7 +178,7 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
         edges = [[source, target] for source, source_friends in friendships.items() if source in users_ids
                  for target in source_friends if target in users_ids]
     edges_df = pd.DataFrame(edges, columns=['Source', 'Target'])
-    edges_path = out_path.with_suffix(".edges.csv")
+    edges_path = out_path / "edges.csv"
     edges_df.to_csv(edges_path)
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
     return nodes_path, edges_path
@@ -177,8 +189,8 @@ def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPR
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     if out_path:
-        nodes_path = out_path.with_suffix(".nodes.csv")
-        edges_path = out_path.with_suffix(".edges.csv")
+        nodes_path = out_path / "nodes.csv"
+        edges_path = out_path / "edges.csv"
         params = "nodes={}&edges={}".format(nodes_path.as_posix(), edges_path.as_posix())
     else:
         params = ""
@@ -198,10 +210,11 @@ def main():
     try:
         screen_name, search_query = (options["<query>"], None) if options["user"] else (None, options["<query>"])
         followers, friends, mutuals, all_users = fetch_users(api, screen_name, search_query,
-                                                             Path(options["--cache"]))
+                                                             int(options["--max-tweets-count"]),
+                                                             Path(options["--out"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
                  "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
-        friendships = fetch_friendships(api, users, Path(options["--excluded"]), Path(options["--cache"]),
+        friendships = fetch_friendships(api, users, Path(options["--excluded"]), Path(options["--out"]),
                                         friends_restricted_to=all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
                       edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)

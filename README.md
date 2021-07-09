@@ -110,25 +110,24 @@ Then, install requirements with
 and finally run the script `fetch_data.py`.
 
 ```
-fetch_data (user|tweets) <query> [options]
+"""
+fetch_data?py (user|tweets) <query> [options]
 
-Fetch a list of users from the Twitter API.
+Fetch a list of users from Twitter API.
 - In the user mode, <query> refers to a username, and we get their friends and followers.
 - In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
 
-To build a search query you can use Twitter’s Advanced Search tool: https://twitter.com/search-advanced, and then use
-the part of search URL after the “?” starting with "q=" and removing the "&src=typd" portion.
-
 Options:
-  -h --help              Show this screen.
-  --graph-nodes <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
-  --edges-ratio <ratio>  Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
-  --credentials <file>   Path of the credentials for Twitter API [default: credentials.json].
-  --excluded <file>      Path of the list of excluded users [default: excluded.json].
-  --cache <path>         Path of the user's friends cache [default: cache].
-  --out <path>           Path of the graph files [default: out/graph].
-  --stop-on-rate-limit   Stop fetching data and export the graph when reaching the rate limit of Twitter API.
-  --run-http-server      Run an HTTP server to visualize the graph in you browser with d3.js.
+  -h --help                   Show this screen.
+  --max-tweets-count <type>   Maximum number of tweets to fetch before stopping. [default: 2500].
+  --graph-nodes <type>        Nodes to consider in the graph: friends, followers or all. [default: followers].
+  --edges-ratio <ratio>       Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
+  --credentials <file>        Path of the credentials for Twitter API [default: credentials.json].
+  --excluded <file>           Path of the list of excluded users [default: excluded.json].
+  --out <path>                Directory of output files [default: out].
+  --stop-on-rate-limit        Stop fetching data and export the graph when reaching the rate limit of Twitter API.
+  --run-http-server           Run an HTTP server to visualize the graph in you browser with d3.js.
+"""
 ```
 
 In the `user` mode, you can enter a username and the script will start by getting the list of their friends and followers, before going through these accounts one by one in order to build the edges of the graph.
@@ -146,14 +145,13 @@ Alternatively, in the `tweets` mode, you can enter a search query, and the scrip
 
 Note that Twitter monetizes historical search results through Gnip, and that you will only be able to access the previous seven days worth of tweets through that endpoint.
 
-TODO: Also note that the Twitter API only returns up to 100 tweets, so I still need to implement a [pagination mechanism](https://developer.twitter.com/en/docs/twitter-api/tweets/search/integrate/paginate).  
 ```console
-$ python3 fetch_data.py tweets q=AcademicChatter%20&result_type=recent&count=100
-Found 100 tweets.
-Found 100 authors.
-[1/100] Fetching friends of @Dr_Meming
-[2/100] Fetching friends of @EtheHerring
-[3/100] Fetching friends of @GrumpyReviewer2
+$ python3 fetch_data.py tweets #AcademicChatter --max-tweets-count=200
+Found 100/200 tweets.
+Found 200/200 tweets.
+[1/200] Fetching friends of @Dr_Meming
+[2/200] Fetching friends of @EtheHerring
+[3/200] Fetching friends of @GrumpyReviewer2
 ```
 
 Since Twitter limits the rate of its API to 15 requests per window of 15 minutes, this is going to take a while.
