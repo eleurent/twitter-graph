@@ -1,9 +1,15 @@
 """
-Usage: fetch_data [options]
+Usage: fetch_data (user|tweets) <query> [options]
+
+Fetch a list of users from Twitter API.
+- In the user mode, <query> refers to a username, and we get their friends and followers.
+- In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
+
+To build a search query you can use Twitter’s Advanced Search tool: https://twitter.com/search-advanced, and then use
+the part of search URL after the “?” starting with "q=" and removing the "&src=typed_query" portion.
 
 Options:
   -h --help              Show this screen.
-  --screen-name <name>   Screen name of the user to query. By default, the account used for authentication to the API.
   --graph-nodes <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
   --edges-ratio <ratio>  Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
   --credentials <file>   Path of the credentials for Twitter API [default: credentials.json].
@@ -27,22 +33,45 @@ from pathlib import Path
 TWITTER_RATE_LIMIT_ERROR = 88
 
 
-def fetch_users(api, user, cache, followers_file="followers.json", friends_file="friends.json"):
+def fetch_users(api, user, search_query, cache,
+                followers_file="followers.json",
+                friends_file="friends.json",
+                tweets_file="tweets.json"):
     """
-        Fetch the lists of followers and friends from Twitter API.
+        Fetch a list of users from Twitter API.
 
-        Both lists are cached in json files.
+        - If a user is provided, get their friends and followers.
+        - Alternatively, if a search query is provided, get the resulting tweets and their users.
+          These users are returned as "followers" of the query, and the list of friends is None.
+
+        The tweets, friends and followers are all cached in json files.
+
     :param twitter.Api api: a Twitter API instance
-    :param str user: screen-name of the user to query. If None, the authenticated user.
+    :param str user: screen-name of the user to query
+    :param str search_query: a search query, starting by "q="
+           for example, "q=twitter%20&result_type=recent&since=2014-07-19&count=100"
+           see more details on https://dev.twitter.com/rest/public/search
     :param Path cache: the path to a cache directory
     :param str followers_file: the followers filename in the cache
     :param str friends_file: the friends filename in the cache
+    :param str tweets_file: the tweets filename in the cache
     :return: followers, friends, intersection of both, and union of both
     """
-    followers = get_or_set(cache / followers_file, partial(api.GetFollowers, screen_name=user), api_function=True)
-    print("Found {} followers.".format(len(followers)))
-    friends = get_or_set(cache / friends_file, partial(api.GetFriends, screen_name=user), api_function=True)
-    print("Found {} friends.".format(len(friends)))
+    if search_query:
+        tweets = get_or_set(cache / tweets_file, partial(api.GetSearch, raw_query=search_query), api_function=True)
+        # TODO: implement a pagination mechanism
+        #  see https://developer.twitter.com/en/docs/twitter-api/tweets/search/integrate/paginate
+        print("Found {} tweets.".format(len(tweets)))
+        followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
+        # TODO: remove duplicate authors
+        print("Found {} authors.".format(len(tweets)))
+        get_or_set(cache / followers_file, followers, api_function=False)
+        friends = []
+    else:
+        followers = get_or_set(cache / followers_file, partial(api.GetFollowers, screen_name=user), api_function=True)
+        print("Found {} followers.".format(len(followers)))
+        friends = get_or_set(cache / friends_file, partial(api.GetFriends, screen_name=user), api_function=True)
+        print("Found {} friends.".format(len(friends)))
     followers_ids = [user["id"] for user in followers]
     mutuals = [user for user in friends if user["id"] in followers_ids]
     all_users = followers + [user for user in friends if user["id"] not in followers_ids]
@@ -167,7 +196,9 @@ def main():
                       sleep_on_rate_limit=not options["--stop-on-rate-limit"])
 
     try:
-        followers, friends, mutuals, all_users = fetch_users(api, options["--screen-name"], Path(options["--cache"]))
+        screen_name, search_query = (options["<query>"], None) if options["user"] else (None, options["<query>"])
+        followers, friends, mutuals, all_users = fetch_users(api, screen_name, search_query,
+                                                             Path(options["--cache"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
                  "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
         friendships = fetch_friendships(api, users, Path(options["--excluded"]), Path(options["--cache"]),
