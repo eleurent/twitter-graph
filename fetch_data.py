@@ -104,7 +104,7 @@ def fetch_friendships(api, users, excluded, out, friends_restricted_to=None, fri
                     print("You reached the rate limit. Disable --stop-on-rate-limit or try again later.")
                     break
             common_friends = set(user_friends).intersection(users_ids)
-            friendships[user["id"]] = list(common_friends)
+            friendships[str(user["id"])] = list(common_friends)
             get_or_set(out / friendships_file, friendships, force=True)
     return friendships
 
