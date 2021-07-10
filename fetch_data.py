@@ -18,7 +18,7 @@ Options:
 """
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-
+from multiprocessing import Process, Queue
 import requests
 import twitter
 import json
@@ -26,6 +26,7 @@ import pandas as pd
 import random
 from docopt import docopt
 from pathlib import Path
+
 
 TWITTER_RATE_LIMIT_ERROR = 88
 
@@ -57,9 +58,8 @@ def fetch_users(api, user, search_query, max_tweets_count, out_path,
         tweets = get_or_set(out_path / tweets_file,
                             partial(fetch_tweets, search_query=search_query, api=api, max_count=max_tweets_count),
                             api_function=True)
-        # TODO: remove duplicate authors
         followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
-        # print("Found {} authors.".format(len(tweets)))
+        print("Found {} unique authors.".format(len(set(fol["id"] for fol in followers))))
         get_or_set(out_path / followers_file, followers, api_function=False)
         friends = []
     else:
@@ -106,6 +106,28 @@ def fetch_friendships(api, users, excluded, out, friends_restricted_to=None, fri
             common_friends = set(user_friends).intersection(users_ids)
             friendships[user["id"]] = list(common_friends)
             get_or_set(out / friendships_file, friendships, force=True)
+    return friendships
+
+
+def fetch_friendships_worker(api, jobs, friendships):
+    while not jobs.empty():
+        args = jobs.get(timeout=1)
+        res = fetch_friendships(api, *args)
+        friendships.update(res)
+
+
+def fetch_friendships_multiprocessing(apis, users, excluded, out, friends_restricted_to=None, chunk=15):
+    jobs, processes, friendships = Queue(), [], {}
+    for i in range(0, len(users), chunk):
+        jobs.put((users[i:i+chunk], excluded, out, friends_restricted_to))
+
+    for api in apis:
+        p = Process(target=fetch_friendships_worker, args=[api, jobs, friendships])
+        p.daemon = True
+        p.start()
+        processes.append(p)
+    for p in processes:
+        p.join()
     return friendships
 
 
@@ -201,21 +223,28 @@ def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPR
 def main():
     options = docopt(__doc__)
     credentials = json.loads(open(options["--credentials"]).read())
-    api = twitter.Api(consumer_key=credentials["api_key"],
-                      consumer_secret=credentials["api_secret_key"],
-                      access_token_key=credentials["access_token"],
-                      access_token_secret=credentials["access_token_secret"],
-                      sleep_on_rate_limit=not options["--stop-on-rate-limit"])
+    apis = [
+        twitter.Api(consumer_key=credential["api_key"],
+                    consumer_secret=credential["api_secret_key"],
+                    access_token_key=credential["access_token"],
+                    access_token_secret=credential["access_token_secret"],
+                    sleep_on_rate_limit=not options["--stop-on-rate-limit"])
+        for credential in credentials
+    ]
 
     try:
         screen_name, search_query = (options["<query>"], None) if options["user"] else (None, options["<query>"])
-        followers, friends, mutuals, all_users = fetch_users(api, screen_name, search_query,
+        followers, friends, mutuals, all_users = fetch_users(apis[0], screen_name, search_query,
                                                              int(options["--max-tweets-count"]),
                                                              Path(options["--out"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
                  "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
-        friendships = fetch_friendships(api, users, Path(options["--excluded"]), Path(options["--out"]),
-                                        friends_restricted_to=all_users)
+        if len(apis) > 1:
+            friendships = fetch_friendships_multiprocessing(apis, users, Path(options["--excluded"]),
+                                                            Path(options["--out"]), all_users)
+        else:
+            friendships = fetch_friendships(apis[0], users, Path(options["--excluded"]), Path(options["--out"]),
+                                            all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
                       edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
         if options["--run-http-server"]:
