@@ -20,6 +20,7 @@ from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process, Queue
 import requests
+import tqdm
 import twitter
 import json
 import pandas as pd
@@ -73,28 +74,27 @@ def fetch_users(api, user, search_query, max_tweets_count, out_path,
     return followers, friends, mutuals, all_users
 
 
-def fetch_friendships(api, users, excluded, out, friends_restricted_to=None, friendships_file="cache/friendships.json"):
+def _fetch_friendships(friendships, api, users, excluded, out, friends_restricted_to=None, friendships_file="cache/friendships.json"):
     """
         Fetch the friends of a list of users from Twitter API
+    :param dict friendships: the set of friendships
     :param twitter.Api api: a Twitter API instance
     :param list users: the users whose friends to look for
     :param list excluded: path to a file containing the screen names of users whose friends not to look for
     :param Path out: the path to output directory
     :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
-    :return dict: a dict of friendships in the form {user_id: [list of friends ids]}
     """
     friends_restricted_to = friends_restricted_to if friends_restricted_to else users
-    friendships = get_or_set(out / friendships_file, {})
     users_ids = set([str(user["id"]) for user in friends_restricted_to])
     excluded = get_or_set(excluded, [])
     for i, user in enumerate(users):
         if user["screen_name"] in excluded:
             continue
         if str(user["id"]) in friendships:
-            print("[{}/{}] @{} found in cache.".format(i+1, len(users), user["screen_name"]))
+            print("@{} found in cache.".format(user["screen_name"]))
         else:
-            print("[{}/{}] Fetching friends of @{}".format(i+1, len(users), user["screen_name"]))
+            print("Fetching friends of @{}".format(user["screen_name"]))
             try:
                 user_friends = api.GetFriendIDs(user_id=user["id"], stringify_ids=True)
             except twitter.error.TwitterError as e:
@@ -105,30 +105,36 @@ def fetch_friendships(api, users, excluded, out, friends_restricted_to=None, fri
                     break
             common_friends = set(user_friends).intersection(users_ids)
             friendships[str(user["id"])] = list(common_friends)
+            # Write to file
             get_or_set(out / friendships_file, friendships, force=True)
+
+
+def fetch_friendships(apis, users, excluded, out, friends_restricted_to=None,
+                      friendships_file="cache/friendships.json", chunk=15):
+    friendships = get_or_set(out / friendships_file, {})
+    if len(apis) == 1:
+        _fetch_friendships(friendships, apis[0], users, excluded, out, friends_restricted_to)
+    else:
+        jobs = Queue()
+        for i in range(0, len(users), chunk):
+            jobs.put((users[i:i+chunk], excluded, out, friends_restricted_to))
+        pbar = [0, len(range(0, len(users), chunk))]
+
+        processes = [Process(target=fetch_friendships_worker, args=[friendships, api, jobs, pbar], daemon=True)
+                     for api in apis]
+        for p in processes:
+            p.start()
+        for p in processes:
+            p.join()
     return friendships
 
 
-def fetch_friendships_worker(api, jobs, friendships):
+def fetch_friendships_worker(friendships, api, jobs, pbar):
     while not jobs.empty():
         args = jobs.get(timeout=1)
-        res = fetch_friendships(api, *args)
-        friendships.update(res)
-
-
-def fetch_friendships_multiprocessing(apis, users, excluded, out, friends_restricted_to=None, chunk=15):
-    jobs, processes, friendships = Queue(), [], {}
-    for i in range(0, len(users), chunk):
-        jobs.put((users[i:i+chunk], excluded, out, friends_restricted_to))
-
-    for api in apis:
-        p = Process(target=fetch_friendships_worker, args=[api, jobs, friendships])
-        p.daemon = True
-        p.start()
-        processes.append(p)
-    for p in processes:
-        p.join()
-    return friendships
+        _fetch_friendships(friendships, api, *args)
+        pbar[0] += 1
+        print(f"Job [{pbar[0]}/{pbar[1]}] finished.")
 
 
 def fetch_tweets(search_query, api, max_count=2000):
@@ -239,11 +245,7 @@ def main():
                                                              Path(options["--out"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
                  "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
-        if len(apis) > 1:
-            friendships = fetch_friendships_multiprocessing(apis, users, Path(options["--excluded"]),
-                                                            Path(options["--out"]), all_users)
-        else:
-            friendships = fetch_friendships(apis[0], users, Path(options["--excluded"]), Path(options["--out"]),
+        friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]),
                                             all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
                       edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
