@@ -118,9 +118,8 @@ def fetch_friendships(apis, users, excluded, out, friends_restricted_to=None,
         jobs = Queue()
         for i in range(0, len(users), chunk):
             jobs.put((users[i:i+chunk], excluded, out, friends_restricted_to))
-        pbar = [0, len(range(0, len(users), chunk))]
 
-        processes = [Process(target=fetch_friendships_worker, args=[friendships, api, jobs, pbar], daemon=True)
+        processes = [Process(target=fetch_friendships_worker, args=[friendships, api, jobs], daemon=True)
                      for api in apis]
         for p in processes:
             p.start()
@@ -129,12 +128,11 @@ def fetch_friendships(apis, users, excluded, out, friends_restricted_to=None,
     return friendships
 
 
-def fetch_friendships_worker(friendships, api, jobs, pbar):
+def fetch_friendships_worker(friendships, api, jobs):
     while not jobs.empty():
         args = jobs.get(timeout=1)
         _fetch_friendships(friendships, api, *args)
-        pbar[0] += 1
-        print(f"Job [{pbar[0]}/{pbar[1]}] finished.")
+        print(f"Job finished, {jobs.qsize()} remaining.")
 
 
 def fetch_tweets(search_query, api, max_count=2000):
@@ -143,6 +141,7 @@ def fetch_tweets(search_query, api, max_count=2000):
         tweets = api.GetSearch(term=search_query,
                                count=100,
                                result_type="recent",
+                               # until="2021-07-09",
                                max_id=max_id)
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
