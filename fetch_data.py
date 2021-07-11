@@ -18,7 +18,7 @@ Options:
 """
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Manager
 import requests
 import tqdm
 import twitter
@@ -92,9 +92,9 @@ def _fetch_friendships(friendships, api, users, excluded, out, friends_restricte
         if user["screen_name"] in excluded:
             continue
         if str(user["id"]) in friendships:
-            print("@{} found in cache.".format(user["screen_name"]))
+            print(f"[{len(friendships)}] @{user['screen_name']} found in cache.")
         else:
-            print("Fetching friends of @{}".format(user["screen_name"]))
+            print(f"[{len(friendships)}] Fetching friends of @{user['screen_name']}")
             try:
                 user_friends = api.GetFriendIDs(user_id=user["id"], stringify_ids=True)
             except twitter.error.TwitterError as e:
@@ -106,12 +106,13 @@ def _fetch_friendships(friendships, api, users, excluded, out, friends_restricte
             common_friends = set(user_friends).intersection(users_ids)
             friendships[str(user["id"])] = list(common_friends)
             # Write to file
-            get_or_set(out / friendships_file, friendships, force=True)
+            get_or_set(out / friendships_file, friendships.copy(), force=True)
 
 
-def fetch_friendships(apis, users, excluded, out, friends_restricted_to=None,
+def fetch_friendships(friendships, apis, users, excluded, out, friends_restricted_to=None,
                       friendships_file="cache/friendships.json", chunk=15):
-    friendships = get_or_set(out / friendships_file, {})
+    friendships.update(get_or_set(out / friendships_file, {}))
+
     if len(apis) == 1:
         _fetch_friendships(friendships, apis[0], users, excluded, out, friends_restricted_to)
     else:
@@ -225,7 +226,7 @@ def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPR
     httpd.serve_forever()
 
 
-def main():
+def main(friendships):
     options = docopt(__doc__)
     credentials = json.loads(open(options["--credentials"]).read())
     apis = [
@@ -239,21 +240,20 @@ def main():
 
     try:
         screen_name, search_query = (options["<query>"], None) if options["user"] else (None, options["<query>"])
-        followers, friends, mutuals, all_users = fetch_users(apis[0], screen_name, search_query,
+        followers, friends, mutuals, all_users = fetch_users(apis[1], screen_name, search_query,
                                                              int(options["--max-tweets-count"]),
                                                              Path(options["--out"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
                  "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
-        friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]),
-                                            all_users)
+        fetch_friendships(friendships, apis, users, Path(options["--excluded"]), Path(options["--out"]), all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
                       edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
         if options["--run-http-server"]:
             serve_http(Path(options["--out"]))
     except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
         print(e)  # Why do I get these?
-        main()  # Retry!
+        main(Manager().dict())  # Retry!
 
 
 if __name__ == "__main__":
-    main()
+    main(Manager().dict())
