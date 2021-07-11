@@ -257,6 +257,12 @@ In order to improve the final Render, it might be useful to exclude the very far
 To do this, go to the Overview tab, click on *Filters* (right panel). Open *Topology* and double-click on *Giant Component*.
 Just below, in the *Queries* panel, activate this filter by pressing the *Filter* button. You should now be able to see in the *Context* panel at the top the percentage of nodes visible.
 
+#### 8. (optional) Make the graph dynamic, based on nodes timestamps
+
+First, a date field must be parsed as a timestamp. In the Data Laboratory, click *Merge colums*, and select a colum such as `created_at` or `query_created_at`, and pick the *Create time interval* merge strategy.
+Then, if you want the nodes to persist after appearing (rather than disappear) select a blank end-time column.
+Choose the parse date option, and set the Date format to `EEE MMM dd HH:mm:ss Z yyyy`. After validating, an *Enable timeline* button should appear at the bottom of the window, which can be used to make a video of the graph evolution.
+
 #### 7. (optional) Display Twitter Handles rather than names on the Graph
 
 An easy solution for this is to go to the Data Laboratory tab. Click at the bottom on the *Copy data to other column* button. Select *screen_name* to *Label*. 
