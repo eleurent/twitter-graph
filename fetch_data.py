@@ -240,7 +240,7 @@ def main(friendships):
 
     try:
         screen_name, search_query = (options["<query>"], None) if options["user"] else (None, options["<query>"])
-        followers, friends, mutuals, all_users = fetch_users(apis[1], screen_name, search_query,
+        followers, friends, mutuals, all_users = fetch_users(apis[0], screen_name, search_query,
                                                              int(options["--max-tweets-count"]),
                                                              Path(options["--out"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
