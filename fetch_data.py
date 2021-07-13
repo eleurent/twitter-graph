@@ -13,12 +13,11 @@ Options:
   --credentials <file>        Path of the credentials for Twitter API [default: credentials.json].
   --excluded <file>           Path of the list of excluded users [default: excluded.json].
   --out <path>                Directory of output files [default: out].
-  --stop-on-rate-limit        Stop fetching data and export the graph when reaching the rate limit of Twitter API.
   --run-http-server           Run an HTTP server to visualize the graph in you browser with d3.js.
 """
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from multiprocessing import Process, Queue, Manager
+from time import sleep
 import requests
 import twitter
 import json
@@ -58,6 +57,7 @@ def fetch_users(api, user, search_query, max_tweets_count, out_path,
         tweets = get_or_set(out_path / tweets_file,
                             partial(fetch_tweets, search_query=search_query, api=api, max_count=max_tweets_count),
                             api_function=True)
+        print("Found {} tweets.".format(len(tweets)))
         followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
         print("Found {} unique authors.".format(len(set(fol["id"] for fol in followers))))
         get_or_set(out_path / followers_file, followers, api_function=False)
@@ -73,20 +73,21 @@ def fetch_users(api, user, search_query, max_tweets_count, out_path,
     return followers, friends, mutuals, all_users
 
 
-def _fetch_friendships(friendships, api, users, excluded, out, friends_restricted_to=None, friendships_file="cache/friendships.json"):
+def fetch_friendships(apis, users, excluded, out, friends_restricted_to=None, friendships_file="cache/friendships.json"):
     """
         Fetch the friends of a list of users from Twitter API
-    :param dict friendships: the set of friendships
-    :param twitter.Api api: a Twitter API instance
+    :param List[twitter.Api] apis: a list of Twitter API instances
     :param list users: the users whose friends to look for
     :param list excluded: path to a file containing the screen names of users whose friends not to look for
     :param Path out: the path to output directory
     :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
     """
+    friendships = get_or_set(out / friendships_file, {})
     friends_restricted_to = friends_restricted_to if friends_restricted_to else users
     users_ids = set([str(user["id"]) for user in friends_restricted_to])
     excluded = get_or_set(excluded, [])
+    api_idx = 0
     for i, user in enumerate(users):
         if user["screen_name"] in excluded:
             continue
@@ -94,45 +95,24 @@ def _fetch_friendships(friendships, api, users, excluded, out, friends_restricte
             print(f"[{len(friendships)}] @{user['screen_name']} found in cache.")
         else:
             print(f"[{len(friendships)}] Fetching friends of @{user['screen_name']}")
-            try:
-                user_friends = api.GetFriendIDs(user_id=user["id"], stringify_ids=True)
-            except twitter.error.TwitterError as e:
-                print("...but it failed. Error: {}".format(e))
-                user_friends = []
-                if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
-                    print("You reached the rate limit. Disable --stop-on-rate-limit or try again later.")
-                    break
+            user_friends = None
+            while user_friends is None:
+                try:
+                    user_friends = apis[api_idx].GetFriendIDs(user_id=user["id"], stringify_ids=True)
+                except twitter.error.TwitterError as e:
+                    if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                        api_idx = (api_idx + 1) % len(apis)
+                        print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+                        sleep(5)
+                    else:
+                        print("...but it failed. Error: {}".format(e))
+                        user_friends = []
+
             common_friends = set(user_friends).intersection(users_ids)
             friendships[str(user["id"])] = list(common_friends)
             # Write to file
             get_or_set(out / friendships_file, friendships.copy(), force=True)
-
-
-def fetch_friendships(friendships, apis, users, excluded, out, friends_restricted_to=None,
-                      friendships_file="cache/friendships.json", chunk=15):
-    friendships.update(get_or_set(out / friendships_file, {}))
-
-    if len(apis) == 1:
-        _fetch_friendships(friendships, apis[0], users, excluded, out, friends_restricted_to)
-    else:
-        jobs = Queue()
-        for i in range(0, len(users), chunk):
-            jobs.put((users[i:i+chunk], excluded, out, friends_restricted_to))
-
-        processes = [Process(target=fetch_friendships_worker, args=[friendships, api, jobs], daemon=True)
-                     for api in apis]
-        for p in processes:
-            p.start()
-        for p in processes:
-            p.join()
     return friendships
-
-
-def fetch_friendships_worker(friendships, api, jobs):
-    while not jobs.empty():
-        args = jobs.get(timeout=1)
-        _fetch_friendships(friendships, api, *args)
-        print(f"Job finished, {jobs.qsize()} remaining.")
 
 
 def fetch_tweets(search_query, api, max_count=2000):
@@ -141,7 +121,7 @@ def fetch_tweets(search_query, api, max_count=2000):
         tweets = api.GetSearch(term=search_query,
                                count=100,
                                result_type="recent",
-                               # until="2021-07-09",
+                               # until="2021-07-10",
                                max_id=max_id)
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
@@ -225,7 +205,7 @@ def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPR
     httpd.serve_forever()
 
 
-def main(friendships):
+def main():
     options = docopt(__doc__)
     credentials = json.loads(open(options["--credentials"]).read())
     apis = [
@@ -233,7 +213,7 @@ def main(friendships):
                     consumer_secret=credential["api_secret_key"],
                     access_token_key=credential["access_token"],
                     access_token_secret=credential["access_token_secret"],
-                    sleep_on_rate_limit=not options["--stop-on-rate-limit"])
+                    sleep_on_rate_limit=False)
         for credential in credentials
     ]
 
@@ -244,15 +224,15 @@ def main(friendships):
                                                              Path(options["--out"]))
         users = {"followers": followers, "friends": friends, "all": all_users,
                  "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
-        fetch_friendships(friendships, apis, users, Path(options["--excluded"]), Path(options["--out"]), all_users)
+        friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]), all_users)
         save_to_graph(users, friendships, Path(options["--out"]),
                       edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
         if options["--run-http-server"]:
             serve_http(Path(options["--out"]))
     except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
         print(e)  # Why do I get these?
-        main(Manager().dict())  # Retry!
+        main()  # Retry!
 
 
 if __name__ == "__main__":
-    main(Manager().dict())
+    main()
