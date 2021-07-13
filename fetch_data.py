@@ -20,7 +20,6 @@ from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process, Queue, Manager
 import requests
-import tqdm
 import twitter
 import json
 import pandas as pd
@@ -146,7 +145,7 @@ def fetch_tweets(search_query, api, max_count=2000):
                                max_id=max_id)
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
-        if not tweets:
+        if len(tweets) < 100:
             print("Done: no more tweets.")
             break
         max_id = min(tweet.id for tweet in tweets)
