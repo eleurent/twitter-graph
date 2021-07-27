@@ -112,8 +112,7 @@ Then, install requirements with
 and finally run the script `fetch_data.py`.
 
 ```
-"""
-fetch_data?py (user|tweets) <query> [options]
+fetch_data.py (user|tweets) <query> [options]
 
 Fetch a list of users from Twitter API.
 - In the user mode, <query> refers to a username, and we get their friends and followers.
@@ -129,7 +128,6 @@ Options:
   --out <path>                Directory of output files [default: out].
   --stop-on-rate-limit        Stop fetching data and export the graph when reaching the rate limit of Twitter API.
   --run-http-server           Run an HTTP server to visualize the graph in you browser with d3.js.
-"""
 ```
 
 In the `user` mode, you can enter a username and the script will start by getting the list of their friends and followers, before going through these accounts one by one in order to build the edges of the graph.
