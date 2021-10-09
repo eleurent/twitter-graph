@@ -112,10 +112,11 @@ Then, install requirements with
 and finally run the script `fetch_data.py`.
 
 ```
-fetch_data.py (user|tweets) <query> [options]
+"""
+Usage: fetch_data (targets) <query> [--users | --tweets] [options]
 
-Fetch a list of users from Twitter API.
-- In the user mode, <query> refers to a username, and we get their friends and followers.
+Fetch a list of targets from Twitter API.
+- In the users mode, <query> refers to usernames, and we get their friends and followers.
 - In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
 
 Options:
@@ -126,14 +127,14 @@ Options:
   --credentials <file>        Path of the credentials for Twitter API [default: credentials.json].
   --excluded <file>           Path of the list of excluded users [default: excluded.json].
   --out <path>                Directory of output files [default: out].
-  --stop-on-rate-limit        Stop fetching data and export the graph when reaching the rate limit of Twitter API.
   --run-http-server           Run an HTTP server to visualize the graph in you browser with d3.js.
+"""
 ```
 
 In the `user` mode, you can enter a username and the script will start by getting the list of their friends and followers, before going through these accounts one by one in order to build the edges of the graph.
 
 ```console
-$ python3 fetch_data.py user eleurent
+$ python3 fetch_data.py targets eleurent --users
 Found 841 followers.
 Found 2406 friends.
 [1/2406] Fetching friends of @Mehdi_Moussaid
@@ -146,7 +147,7 @@ Alternatively, in the `tweets` mode, you can enter a search query, and the scrip
 Note that Twitter monetizes historical search results through Gnip, and that you will only be able to access the previous seven days worth of tweets through that endpoint.
 
 ```console
-$ python3 fetch_data.py tweets #AcademicChatter --max-tweets-count=200
+$ python3 fetch_data.py targets #AcademicChatter --max-tweets-count=200 --tweets
 Found 100/200 tweets.
 Found 200/200 tweets.
 [1/200] Fetching friends of @Dr_Meming
