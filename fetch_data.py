@@ -1,8 +1,8 @@
 """
-Usage: fetch_data (user|tweets) <query> [options]
+Usage: fetch_data (targets) <query> [--users | --tweets] [options]
 
-Fetch a list of users from Twitter API.
-- In the user mode, <query> refers to a username, and we get their friends and followers.
+Fetch a list of targets from Twitter API.
+- In the users mode, <query> refers to usernames, and we get their friends and followers.
 - In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
 
 Options:
@@ -16,7 +16,6 @@ Options:
   --run-http-server           Run an HTTP server to visualize the graph in you browser with d3.js.
 """
 from functools import partial
-from http.server import HTTPServer, SimpleHTTPRequestHandler
 from time import sleep
 import requests
 import twitter
@@ -27,25 +26,27 @@ from docopt import docopt
 from pathlib import Path
 
 
+
 TWITTER_RATE_LIMIT_ERROR = 88
 
 
-def fetch_users(api, user, search_query, max_tweets_count, out_path,
+def fetch_users(apis, target, are_users, nodes_to_considere, max_tweets_count, out_path,
                 followers_file="cache/followers.json",
                 friends_file="cache/friends.json",
                 tweets_file="cache/tweets.json"):
     """
         Fetch a list of users from Twitter API.
 
-        - If a user is provided, get their friends and followers.
+        - If a target (user) is provided, get their friends and followers.
         - Alternatively, if a search query is provided, get the resulting tweets and their users.
           These users are returned as "followers" of the query, and the list of friends is None.
 
         The tweets, friends and followers are all cached in json files.
 
-    :param twitter.Api api: a Twitter API instance
-    :param str user: screen-name of a user
-    :param str search_query: a search query
+    :param List[twitter.Api] apis: a list of Twitter API instances
+    :param str target: screen-name of a target
+    :param str are_users: true if the target is an user, false otherwise
+    :param str nodes_to_considere: Nodes to consider in the graph: friends, followers or all.
     :param int max_tweets_count: maximum number of tweets fetched
     :param Path out_path: the path to the output directory
     :param str followers_file: the followers filename in the cache
@@ -53,27 +54,62 @@ def fetch_users(api, user, search_query, max_tweets_count, out_path,
     :param str tweets_file: the tweets filename in the cache
     :return: followers, friends, intersection of both, and union of both
     """
-    if search_query:
-        tweets = get_or_set(out_path / tweets_file,
-                            partial(fetch_tweets, search_query=search_query, api=api, max_count=max_tweets_count),
+    if not are_users:
+        tweets = get_or_set(out_path / target / tweets_file,
+                            partial(fetch_tweets, search_query=target, api=apis[0], max_count=max_tweets_count),
                             api_function=True)
         print("Found {} tweets.".format(len(tweets)))
         followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
         print("Found {} unique authors.".format(len(set(fol["id"] for fol in followers))))
-        get_or_set(out_path / followers_file, followers, api_function=False)
+        get_or_set(out_path / target / followers_file, followers, api_function=False)
         friends = []
     else:
-        followers = get_or_set(out_path / followers_file, partial(api.GetFollowers, screen_name=user), api_function=True)
-        print("Found {} followers.".format(len(followers)))
-        friends = get_or_set(out_path / friends_file, partial(api.GetFriends, screen_name=user), api_function=True)
-        print("Found {} friends.".format(len(friends)))
+        api_idx = 0
+        next_cursor = -1
+        followers = []
+        friends = []
+
+        if nodes_to_considere == "followers" or "all":
+            while next_cursor != 0:
+                try:
+                    print("Using {} cursor.".format(next_cursor))
+                    # follower.json serve as a reference, it should not be used with cache
+                    new_followers, next_cursor, previous_cursor = set_paged_results(out_path / target / followers_file, partial(apis[api_idx].GetFollowersPaged, screen_name=target, count=200, cursor=next_cursor),
+                                      api_function=True)
+                    followers += new_followers
+                    print("Found {} followers.".format(len(followers)))
+                except twitter.error.TwitterError as e:
+                    if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                        api_idx = (api_idx + 1) % len(apis)
+                        print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+                        sleep(1)
+                    else:
+                        print("...but it failed. Error: {}".format(e))
+
+        next_cursor = -1
+        if nodes_to_considere == "friends" or "all":
+            while next_cursor != 0:
+                try:
+                    print("Using {} cursor.".format(next_cursor))
+                    new_friends, next_cursor, previous_cursor = set_paged_results(out_path / target / friends_file,
+                                         partial(apis[api_idx].GetFriendsPaged, screen_name=target, count=200, cursor=next_cursor), api_function=True)
+                    friends += new_friends
+                    print("Found {} friends.".format(len(friends)))
+                except twitter.error.TwitterError as e:
+                    if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                        api_idx = (api_idx + 1) % len(apis)
+                        print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+                        sleep(1)
+                    else:
+                        print("...but it failed. Error: {}".format(e))
+
     followers_ids = [user["id"] for user in followers]
-    mutuals = [user for user in friends if user["id"] in followers_ids]
+    mutuals = [user["id"] for user in friends if user["id"] in followers_ids]
     all_users = followers + [user for user in friends if user["id"] not in followers_ids]
     return followers, friends, mutuals, all_users
 
 
-def fetch_friendships(apis, users, excluded, out, friends_restricted_to=None, friendships_file="cache/friendships.json"):
+def fetch_friendships(apis, users, excluded, out, target, friends_restricted_to=None, friendships_file="cache/friendships.json"):
     """
         Fetch the friends of a list of users from Twitter API
     :param List[twitter.Api] apis: a list of Twitter API instances
@@ -83,7 +119,7 @@ def fetch_friendships(apis, users, excluded, out, friends_restricted_to=None, fr
     :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
     """
-    friendships = get_or_set(out / friendships_file, {})
+    friendships = get_or_set(out / target / friendships_file, {})
     friends_restricted_to = friends_restricted_to if friends_restricted_to else users
     users_ids = set([str(user["id"]) for user in friends_restricted_to])
     excluded = get_or_set(excluded, [])
@@ -95,23 +131,27 @@ def fetch_friendships(apis, users, excluded, out, friends_restricted_to=None, fr
             print(f"[{len(friendships)}] @{user['screen_name']} found in cache.")
         else:
             print(f"[{len(friendships)}] Fetching friends of @{user['screen_name']}")
-            user_friends = None
-            while user_friends is None:
+            user_friends = []
+            while not user_friends:
                 try:
-                    user_friends = apis[api_idx].GetFriendIDs(user_id=user["id"], stringify_ids=True)
+                    next_cursor = -1
+                    previous_cursor = 0
+                    while previous_cursor != next_cursor and next_cursor != 0:
+                        next_cursor, previous_cursor, new_user_friends,  = apis[api_idx].GetFriendIDsPaged(user_id=user["id"], stringify_ids=True, cursor=next_cursor)
+                        user_friends = user_friends + new_user_friends
                 except twitter.error.TwitterError as e:
                     if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
                         api_idx = (api_idx + 1) % len(apis)
                         print(f"You reached the rate limit. Moving to next api: #{api_idx}")
-                        sleep(5)
+                        sleep(15)
                     else:
                         print("...but it failed. Error: {}".format(e))
-                        user_friends = []
+                        user_friends = [""]
 
             common_friends = set(user_friends).intersection(users_ids)
             friendships[str(user["id"])] = list(common_friends)
             # Write to file
-            get_or_set(out / friendships_file, friendships.copy(), force=True)
+            get_or_set(out / target / friendships_file, friendships.copy(), force=True)
     return friendships
 
 
@@ -152,19 +192,48 @@ def get_or_set(path, value=None, force=False, api_function=False):
     else:
         path.parent.mkdir(parents=True, exist_ok=True)
         if api_function:
-            value = [item._json for item in value()]
+            result = value()
+            value = [item._json for item in result]
         with path.open("w") as f:
             json.dump(value, f, indent=2)
     return value
 
 
-def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users=None):
+def set_paged_results(path, value=None, api_function=False):
+    """
+        Write a value to the file.
+    :param Path path: file path
+    :param value: the value to write to the file, if known
+    :param bool api_function: if the value an API function? If yes, value must be a callback for the API call.
+    :return: the written value
+    """
+    next_cursor = -1
+    if api_function:
+        result = value()
+        value = [item._json for item in result[2]]
+        next_cursor = result[0]
+        previous_cursor = result[1]
+
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w+") as f:
+            json.dump(value, f, indent=2)
+    else:
+        with path.open("r+") as f:
+            data = json.load(f)
+            data = data+value
+            f.seek(0)
+            json.dump(data, f, indent=2)
+    return value, next_cursor, previous_cursor
+
+
+def save_to_graph(users, friendships, out_path, target, edges_ratio=1.0, protected_users=None):
     columns = [field for field in users[0] if field not in ["id", "id_str"]]
     nodes = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
     users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
     users_df["Label"] = users_df["name"]
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    nodes_path = out_path / "nodes.csv"
+    nodes_path = out_path / target / "nodes.csv"
     users_df.to_csv(nodes_path, index_label="Id")
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
     users_ids = [user["id_str"] for user in users]
@@ -185,25 +254,10 @@ def save_to_graph(users, friendships, out_path, edges_ratio=1.0, protected_users
         edges = [[source, target] for source, source_friends in friendships.items() if source in users_ids
                  for target in source_friends if target in users_ids]
     edges_df = pd.DataFrame(edges, columns=['Source', 'Target'])
-    edges_path = out_path / "edges.csv"
+    edges_path = out_path / target / "edges.csv"
     edges_df.to_csv(edges_path)
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
     return nodes_path, edges_path
-
-
-def serve_http(out_path=None, server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler,
-               url="http://localhost", port=8000):
-    server_address = ('', port)
-    httpd = server_class(server_address, handler_class)
-    if out_path:
-        nodes_path = out_path / "nodes.csv"
-        edges_path = out_path / "edges.csv"
-        params = "nodes={}&edges={}".format(nodes_path.as_posix(), edges_path.as_posix())
-    else:
-        params = ""
-    print("Serving HTTP at {}:{}?{}".format(url, port, params))
-    httpd.serve_forever()
-
 
 def main():
     options = docopt(__doc__)
@@ -218,17 +272,19 @@ def main():
     ]
 
     try:
-        screen_name, search_query = (options["<query>"], None) if options["user"] else (None, options["<query>"])
-        followers, friends, mutuals, all_users = fetch_users(apis[0], screen_name, search_query,
-                                                             int(options["--max-tweets-count"]),
-                                                             Path(options["--out"]))
-        users = {"followers": followers, "friends": friends, "all": all_users,
-                 "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
-        friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]), all_users)
-        save_to_graph(users, friendships, Path(options["--out"]),
-                      edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
-        if options["--run-http-server"]:
-            serve_http(Path(options["--out"]))
+        search_query = options["<query>"].split(',')
+        are_users = True if options["--users"] else False
+        nodes_to_considere = options["--graph-nodes"]
+        for target in search_query:
+            print("Process query {}".format(target))
+            followers, friends, mutuals, all_users = fetch_users(apis, target, are_users, nodes_to_considere,
+                                                                 int(options["--max-tweets-count"]),
+                                                                 Path(options["--out"]))
+            users = {"followers": followers, "friends": friends, "all": all_users,
+                     "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
+            friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]), target, all_users)
+            save_to_graph(users, friendships, Path(options["--out"]), target,
+                          edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
     except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
         print(e)  # Why do I get these?
         main()  # Retry!
