@@ -44,7 +44,7 @@ def fetch_users(apis, target, are_users, nodes_to_consider, max_tweets_count, ou
 
     :param List[twitter.Api] apis: a list of Twitter API instances
     :param str target: screen-name of a target
-    :param str are_users: true if the target is an user, false otherwise
+    :param bool are_users: true if the target is an user, false otherwise
     :param str nodes_to_consider: Nodes to consider in the graph: friends, followers or all.
     :param int max_tweets_count: maximum number of tweets fetched
     :param Path out_path: the path to the output directory
@@ -53,6 +53,7 @@ def fetch_users(apis, target, are_users, nodes_to_consider, max_tweets_count, ou
     :param str tweets_file: the tweets filename in the cache
     :return: followers, friends, intersection of both, and union of both
     """
+    followers = friends = []
     if not are_users:
         tweets = get_or_set(out_path / target / tweets_file,
                             partial(fetch_tweets, search_query=target, api=apis[0], max_count=max_tweets_count),
@@ -61,54 +62,41 @@ def fetch_users(apis, target, are_users, nodes_to_consider, max_tweets_count, ou
         followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
         print("Found {} unique authors.".format(len(set(fol["id"] for fol in followers))))
         get_or_set(out_path / target / followers_file, followers, api_function=False)
-        friends = []
     else:
-        api_idx = 0
-        next_cursor = -1
-        followers = []
-        friends = []
-
-        if nodes_to_consider == "followers" or "all":
-            while next_cursor != 0:
-                try:
-                    print("Using {} cursor.".format(next_cursor))
-                    # follower.json serve as a reference, it should not be used with cache
-                    new_followers, next_cursor, previous_cursor = set_paged_results(
-                        out_path / target / followers_file, partial(apis[api_idx].GetFollowersPaged,
-                                                                    screen_name=target, count=200, cursor=next_cursor),
-                        api_function=True)
-                    followers += new_followers
-                    print("Found {} followers.".format(len(followers)))
-                except twitter.error.TwitterError as e:
-                    if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
-                        api_idx = (api_idx + 1) % len(apis)
-                        print(f"You reached the rate limit. Moving to next api: #{api_idx}")
-                        sleep(1)
-                    else:
-                        print("...but it failed. Error: {}".format(e))
-
-        next_cursor = -1
-        if nodes_to_consider == "friends" or "all":
-            while next_cursor != 0:
-                try:
-                    print("Using {} cursor.".format(next_cursor))
-                    new_friends, next_cursor, previous_cursor = set_paged_results(out_path / target / friends_file,
-                                         partial(apis[api_idx].GetFriendsPaged, screen_name=target, count=200,
-                                                 cursor=next_cursor), api_function=True)
-                    friends += new_friends
-                    print("Found {} friends.".format(len(friends)))
-                except twitter.error.TwitterError as e:
-                    if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
-                        api_idx = (api_idx + 1) % len(apis)
-                        print(f"You reached the rate limit. Moving to next api: #{api_idx}")
-                        sleep(1)
-                    else:
-                        print("...but it failed. Error: {}".format(e))
+        if nodes_to_consider in ["followers", "all"]:
+            followers = fetch_users_paged(apis, target, api_func='GetFollowersPaged',
+                                          out_file=out_path / target / followers_file)
+        if nodes_to_consider in ["friends", "all"]:
+            friends = fetch_users_paged(apis, target, api_func='GetFriendsPaged',
+                                        out_file=out_path / target / friends_file)
 
     followers_ids = [user["id"] for user in followers]
     mutuals = [user["id"] for user in friends if user["id"] in followers_ids]
     all_users = followers + [user for user in friends if user["id"] not in followers_ids]
     return followers, friends, mutuals, all_users
+
+
+def fetch_users_paged(apis, screen_name, api_func, out_file):
+    api_idx = 0
+    next_cursor = -1
+    users = []
+    while next_cursor != 0:
+        try:
+            print("Using {} cursor.".format(next_cursor))
+            # follower.json serve as a reference, it should not be used with cache
+            new_users, next_cursor, previous_cursor = set_paged_results(
+                out_file, partial(getattr(apis[api_idx], api_func), screen_name=screen_name, count=200,
+                                  cursor=next_cursor), api_function=True)
+            users += new_users
+            print("Found {} users.".format(len(users)))
+        except twitter.error.TwitterError as e:
+            if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                api_idx = (api_idx + 1) % len(apis)
+                print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+                sleep(1)
+            else:
+                print("...but it failed. Error: {}".format(e))
+    return users
 
 
 def fetch_friendships(apis, users, excluded, out, target,
@@ -166,7 +154,6 @@ def fetch_tweets(search_query, api, max_count=2000):
         tweets = api.GetSearch(term=search_query,
                                count=100,
                                result_type="recent",
-                               # until="2021-07-10",
                                max_id=max_id)
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
@@ -263,6 +250,7 @@ def save_to_graph(users, friendships, out_path, target, edges_ratio=1.0, protect
     edges_df.to_csv(edges_path)
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
     return nodes_path, edges_path
+
 
 def main():
     options = docopt(__doc__)
