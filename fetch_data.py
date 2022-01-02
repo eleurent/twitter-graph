@@ -6,14 +6,15 @@ Fetch a list of targets from Twitter API.
 - In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
 
 Options:
-  -h --help                   Show this screen.
-  --max-tweets-count <type>   Maximum number of tweets to fetch before stopping. [default: 2500].
-  --graph-nodes <type>        Nodes to consider in the graph: friends, followers or all. [default: followers].
-  --edges-ratio <ratio>       Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
-  --credentials <file>        Path of the credentials for Twitter API [default: credentials.json].
-  --excluded <file>           Path of the list of excluded users [default: excluded.json].
-  --out <path>                Directory of output files [default: out].
-  --run-http-server           Run an HTTP server to visualize the graph in you browser with d3.js.
+  -h --help                    Show this screen.
+  --max-tweets-count <type>    Maximum number of tweets to fetch before stopping. [default: 2500].
+  --stop-on-rate-limit         Stop fetching and export the graph when a rate limit is raised.
+  --nodes-to-consider <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
+  --edges-ratio <ratio>        Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
+  --credentials <file>         Path of the credentials for Twitter API [default: credentials.json].
+  --excluded <file>            Path of the list of excluded users [default: excluded.json].
+  --out <path>                 Directory of output files [default: out].
+  --run-http-server            Run an HTTP server to visualize the graph in you browser with d3.js.
 """
 from functools import partial
 from time import sleep
@@ -88,7 +89,7 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
                 out_file, partial(getattr(apis[api_idx], api_func), screen_name=screen_name, count=200,
                                   cursor=next_cursor), api_function=True)
             users += new_users
-            print("Found {} users.".format(len(users)))
+            print(f"{api_func} found {len(users)} users.")
         except twitter.error.TwitterError as e:
             if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
                 api_idx = (api_idx + 1) % len(apis)
@@ -100,6 +101,7 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
 
 
 def fetch_friendships(apis, users, excluded, out, target,
+                      stop_on_rate_limit=False,
                       friends_restricted_to=None,
                       friendships_file="cache/friendships.json"):
     """
@@ -108,6 +110,8 @@ def fetch_friendships(apis, users, excluded, out, target,
     :param list users: the users whose friends to look for
     :param list excluded: path to a file containing the screen names of users whose friends not to look for
     :param Path out: the path to output directory
+    :param str target: the target query name
+    :param bool stop_on_rate_limit: stop fetching when a rate limit is raised
     :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
     """
@@ -134,6 +138,9 @@ def fetch_friendships(apis, users, excluded, out, target,
                         user_friends = user_friends + new_user_friends
                 except twitter.error.TwitterError as e:
                     if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                        if stop_on_rate_limit:
+                            print(f"You reached the rate limit. Stopping as required.")
+                            return friendships
                         api_idx = (api_idx + 1) % len(apis)
                         print(f"You reached the rate limit. Moving to next api: #{api_idx}")
                         sleep(15)
@@ -267,16 +274,17 @@ def main():
     try:
         search_query = options["<query>"].split(',')
         are_users = True if options["--users"] else False
-        nodes_to_consider = options["--graph-nodes"]
+        nodes_to_consider = options["--nodes-to-consider"]
         for target in search_query:
             print("Process query {}".format(target))
             followers, friends, mutuals, all_users = fetch_users(apis, target, are_users, nodes_to_consider,
                                                                  int(options["--max-tweets-count"]),
                                                                  Path(options["--out"]))
             users = {"followers": followers, "friends": friends, "all": all_users,
-                     "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
+                     "few": random.choices(followers, k=min(100, len(followers)))}[options["--nodes-to-consider"]]
             friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]), target,
-                                            all_users)
+                                            stop_on_rate_limit=options["--stop-on-rate-limit"],
+                                            friends_restricted_to=all_users)
             save_to_graph(users, friendships, Path(options["--out"]), target,
                           edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
     except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
