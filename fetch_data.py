@@ -26,11 +26,10 @@ from docopt import docopt
 from pathlib import Path
 
 
-
 TWITTER_RATE_LIMIT_ERROR = 88
 
 
-def fetch_users(apis, target, are_users, nodes_to_considere, max_tweets_count, out_path,
+def fetch_users(apis, target, are_users, nodes_to_consider, max_tweets_count, out_path,
                 followers_file="cache/followers.json",
                 friends_file="cache/friends.json",
                 tweets_file="cache/tweets.json"):
@@ -46,7 +45,7 @@ def fetch_users(apis, target, are_users, nodes_to_considere, max_tweets_count, o
     :param List[twitter.Api] apis: a list of Twitter API instances
     :param str target: screen-name of a target
     :param str are_users: true if the target is an user, false otherwise
-    :param str nodes_to_considere: Nodes to consider in the graph: friends, followers or all.
+    :param str nodes_to_consider: Nodes to consider in the graph: friends, followers or all.
     :param int max_tweets_count: maximum number of tweets fetched
     :param Path out_path: the path to the output directory
     :param str followers_file: the followers filename in the cache
@@ -69,13 +68,15 @@ def fetch_users(apis, target, are_users, nodes_to_considere, max_tweets_count, o
         followers = []
         friends = []
 
-        if nodes_to_considere == "followers" or "all":
+        if nodes_to_consider == "followers" or "all":
             while next_cursor != 0:
                 try:
                     print("Using {} cursor.".format(next_cursor))
                     # follower.json serve as a reference, it should not be used with cache
-                    new_followers, next_cursor, previous_cursor = set_paged_results(out_path / target / followers_file, partial(apis[api_idx].GetFollowersPaged, screen_name=target, count=200, cursor=next_cursor),
-                                      api_function=True)
+                    new_followers, next_cursor, previous_cursor = set_paged_results(
+                        out_path / target / followers_file, partial(apis[api_idx].GetFollowersPaged,
+                                                                    screen_name=target, count=200, cursor=next_cursor),
+                        api_function=True)
                     followers += new_followers
                     print("Found {} followers.".format(len(followers)))
                 except twitter.error.TwitterError as e:
@@ -87,12 +88,13 @@ def fetch_users(apis, target, are_users, nodes_to_considere, max_tweets_count, o
                         print("...but it failed. Error: {}".format(e))
 
         next_cursor = -1
-        if nodes_to_considere == "friends" or "all":
+        if nodes_to_consider == "friends" or "all":
             while next_cursor != 0:
                 try:
                     print("Using {} cursor.".format(next_cursor))
                     new_friends, next_cursor, previous_cursor = set_paged_results(out_path / target / friends_file,
-                                         partial(apis[api_idx].GetFriendsPaged, screen_name=target, count=200, cursor=next_cursor), api_function=True)
+                                         partial(apis[api_idx].GetFriendsPaged, screen_name=target, count=200,
+                                                 cursor=next_cursor), api_function=True)
                     friends += new_friends
                     print("Found {} friends.".format(len(friends)))
                 except twitter.error.TwitterError as e:
@@ -109,7 +111,9 @@ def fetch_users(apis, target, are_users, nodes_to_considere, max_tweets_count, o
     return followers, friends, mutuals, all_users
 
 
-def fetch_friendships(apis, users, excluded, out, target, friends_restricted_to=None, friendships_file="cache/friendships.json"):
+def fetch_friendships(apis, users, excluded, out, target,
+                      friends_restricted_to=None,
+                      friendships_file="cache/friendships.json"):
     """
         Fetch the friends of a list of users from Twitter API
     :param List[twitter.Api] apis: a list of Twitter API instances
@@ -137,7 +141,8 @@ def fetch_friendships(apis, users, excluded, out, target, friends_restricted_to=
                     next_cursor = -1
                     previous_cursor = 0
                     while previous_cursor != next_cursor and next_cursor != 0:
-                        next_cursor, previous_cursor, new_user_friends,  = apis[api_idx].GetFriendIDsPaged(user_id=user["id"], stringify_ids=True, cursor=next_cursor)
+                        next_cursor, previous_cursor, new_user_friends,  = \
+                            apis[api_idx].GetFriendIDsPaged(user_id=user["id"], stringify_ids=True, cursor=next_cursor)
                         user_friends = user_friends + new_user_friends
                 except twitter.error.TwitterError as e:
                     if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
@@ -274,15 +279,16 @@ def main():
     try:
         search_query = options["<query>"].split(',')
         are_users = True if options["--users"] else False
-        nodes_to_considere = options["--graph-nodes"]
+        nodes_to_consider = options["--graph-nodes"]
         for target in search_query:
             print("Process query {}".format(target))
-            followers, friends, mutuals, all_users = fetch_users(apis, target, are_users, nodes_to_considere,
+            followers, friends, mutuals, all_users = fetch_users(apis, target, are_users, nodes_to_consider,
                                                                  int(options["--max-tweets-count"]),
                                                                  Path(options["--out"]))
             users = {"followers": followers, "friends": friends, "all": all_users,
                      "few": random.choices(followers, k=min(100, len(followers)))}[options["--graph-nodes"]]
-            friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]), target, all_users)
+            friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]), target,
+                                            all_users)
             save_to_graph(users, friendships, Path(options["--out"]), target,
                           edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
     except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
