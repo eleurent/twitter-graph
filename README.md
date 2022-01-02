@@ -112,23 +112,22 @@ Then, install requirements with
 and finally run the script `fetch_data.py`.
 
 ```
-"""
-Usage: fetch_data (targets) <query> [--users | --tweets] [options]
+Usage: fetch_data (users | tweets) <query>  [options]
 
 Fetch a list of targets from Twitter API.
 - In the users mode, <query> refers to usernames, and we get their friends and followers.
 - In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
 
 Options:
-  -h --help                   Show this screen.
-  --max-tweets-count <type>   Maximum number of tweets to fetch before stopping. [default: 2500].
-  --graph-nodes <type>        Nodes to consider in the graph: friends, followers or all. [default: followers].
-  --edges-ratio <ratio>       Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
-  --credentials <file>        Path of the credentials for Twitter API [default: credentials.json].
-  --excluded <file>           Path of the list of excluded users [default: excluded.json].
-  --out <path>                Directory of output files [default: out].
-  --run-http-server           Run an HTTP server to visualize the graph in you browser with d3.js.
-"""
+  -h --help                    Show this screen.
+  --max-tweets-count <type>    Maximum number of tweets to fetch before stopping. [default: 2500].
+  --stop-on-rate-limit         Stop fetching and export the graph when a rate limit is raised.
+  --nodes-to-consider <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
+  --edges-ratio <ratio>        Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
+  --credentials <file>         Path of the credentials for Twitter API [default: credentials.json].
+  --excluded <file>            Path of the list of excluded users [default: excluded.json].
+  --out <path>                 Directory of output files [default: out].
+  --run-http-server            Run an HTTP server to visualize the graph in you browser with d3.js.
 ```
 
 In the `user` mode, you can enter a username and the script will start by getting the list of their friends and followers, before going through these accounts one by one in order to build the edges of the graph.

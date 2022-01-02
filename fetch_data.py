@@ -1,5 +1,5 @@
 """
-Usage: fetch_data (targets) <query> [--users | --tweets] [options]
+Usage: fetch_data (users | tweets) <query>  [options]
 
 Fetch a list of targets from Twitter API.
 - In the users mode, <query> refers to usernames, and we get their friends and followers.
@@ -273,7 +273,7 @@ def main():
 
     try:
         search_query = options["<query>"].split(',')
-        are_users = True if options["--users"] else False
+        are_users = True if options["users"] else False
         nodes_to_consider = options["--nodes-to-consider"]
         for target in search_query:
             print("Process query {}".format(target))
