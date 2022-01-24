@@ -133,7 +133,7 @@ Options:
 In the `user` mode, you can enter a username and the script will start by getting the list of their friends and followers, before going through these accounts one by one in order to build the edges of the graph.
 
 ```console
-$ python3 fetch_data.py targets eleurent --users
+$ python3 fetch_data.py users eleurent
 Found 841 followers.
 Found 2406 friends.
 [1/2406] Fetching friends of @Mehdi_Moussaid
@@ -146,7 +146,7 @@ Alternatively, in the `tweets` mode, you can enter a search query, and the scrip
 Note that Twitter monetizes historical search results through Gnip, and that you will only be able to access the previous seven days worth of tweets through that endpoint.
 
 ```console
-$ python3 fetch_data.py targets #AcademicChatter --max-tweets-count=200 --tweets
+$ python3 fetch_data.py tweets #AcademicChatter --max-tweets-count=200
 Found 100/200 tweets.
 Found 200/200 tweets.
 [1/200] Fetching friends of @Dr_Meming
@@ -160,7 +160,7 @@ In order to interrupt and resume the requests at any time, a very simple caching
 ```
 KeyboardInterrupt
 
-python3 fetch_data.py
+python3 fetch_data.py users eleurent
 [1/2406] @Mehdi_Moussaid found in cache.
 [2/2406] @Inria_Lille found in cache.
 [3/2406] @Limericking found in cache.
