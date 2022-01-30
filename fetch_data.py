@@ -1,10 +1,14 @@
 """
-Usage: fetch_data (users | tweets | likes) <query>  [options]
+Usage: fetch_data <mode> <query> [options]
 
-Fetch a list of targets from Twitter API.
-- In the users mode, <query> refers to usernames, and we get their friends and followers.
-- In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
-- In the likes mode, <query> refers to usernames, and we get the users of the tweets they have liked.
+Fetch a list of targets from Twitter API, following the given <mode>.
+- In the 'users' mode, <query> refers to usernames, and we get their friends and followers.
+- In the 'tweets' mode, <query> refers to a search query, and we get the users of the resulting tweets.
+- In the 'likes' mode, <query> refers to usernames, and we get the users of the tweets they have liked.
+
+Arguments:
+  <mode>                       Mode of data fetching. Must be one of 'users', 'likes', or 'tweets'.
+  <query>                      The username or search query for which to fetch data, depending on the mode.
 
 Options:
   -h --help                    Show this screen.
@@ -311,10 +315,11 @@ def main():
 
     try:
         search_query = options["<query>"].split(',')
-        if options["users"] not in ["users", "tweets", "likes"]:
-            raise Exception("Choose one of users, tweets, or likes.")
+        if options["<mode>"] not in ["users", "tweets", "likes"]:
+            print(f"options[\"<mode>\"] = {options['<mode>']}")
+            raise Exception("Mode must be one of 'users', 'tweets', 'likes'.")
         else:
-            mode = {"users": Mode.USERS, "tweets": Mode.TWEETS, "like": Mode.LIKES}[options["users"]]
+            mode = {"users": Mode.USERS, "tweets": Mode.TWEETS, "like": Mode.LIKES}[options["<mode>"]]
         nodes_to_consider = options["--nodes-to-consider"]
         for target in search_query:
             print("Process query {}".format(target))
