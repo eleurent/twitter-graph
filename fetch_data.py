@@ -118,10 +118,10 @@ def fetch_friendships(apis, users, excluded, out, target,
     friendships = get_or_set(out / target / friendships_file, {})
     friends_restricted_to = friends_restricted_to if friends_restricted_to else users
     users_ids = set([str(user["id"]) for user in friends_restricted_to])
-    excluded = get_or_set(excluded, [])
+    excluded = [s.lower() for s in get_or_set(excluded, [])]
     api_idx = 0
     for i, user in enumerate(users):
-        if user["screen_name"] in excluded:
+        if user["screen_name"].lower() in excluded:
             continue
         if str(user["id"]) in friendships:
             print(f"[{len(friendships)}] @{user['screen_name']} found in cache.")
