@@ -1,9 +1,14 @@
 """
-Usage: fetch_data (users | tweets) <query>  [options]
+Usage: fetch_data <mode> <query> [options]
 
-Fetch a list of targets from Twitter API.
-- In the users mode, <query> refers to usernames, and we get their friends and followers.
-- In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
+Fetch a list of targets from Twitter API, following the given <mode>.
+- In the 'users' mode, <query> refers to usernames, and we get their friends and followers.
+- In the 'search' mode, <query> refers to a search query, and we get the users of the resulting tweets.
+- In the 'likes' mode, <query> refers to usernames, and we get the users of the tweets they have liked.
+
+Arguments:
+  <mode>                       Mode of data fetching. Must be one of 'users', 'search', or 'likes'.
+  <query>                      The username or search query for which to fetch data, depending on the mode.
 
 Options:
   -h --help                    Show this screen.
@@ -25,27 +30,41 @@ import pandas as pd
 import random
 from docopt import docopt
 from pathlib import Path
+from enum import Enum
 
 
 TWITTER_RATE_LIMIT_ERROR = 88
 
 
-def fetch_users(apis, target, are_users, nodes_to_consider, max_tweets_count, out_path,
+class Mode(Enum):
+    USERS = 1
+    SEARCH = 2
+    LIKES = 3
+
+
+def fetch_users(apis, target, mode, nodes_to_consider, max_tweets_count, out_path,
                 followers_file="cache/followers.json",
                 friends_file="cache/friends.json",
                 tweets_file="cache/tweets.json"):
     """
         Fetch a list of users from Twitter API.
 
-        - If a target (user) is provided, get their friends and followers.
-        - Alternatively, if a search query is provided, get the resulting tweets and their users.
-          These users are returned as "followers" of the query, and the list of friends is None.
+        - If in 'users' mode, the target is a username. We retrieve and cache the user's friends and followers.
+        - If in 'search' mode, the target is a search query. We retrieve and cache the tweets associated with the query,
+          up to max_tweets_count. The tweet authors are returned as "followers" of the query, and the list of friends is
+          None.
+        - If in 'likes' mode, the target is a username. We retrieve and cache the tweets liked by the user, up to
+          max_tweets_count. The tweet authors are returned as "followers" of the query, and the list of friends is None.
 
-        The tweets, friends and followers are all cached in json files.
+        The tweets, friends and followers are all cached in json files, with the following paths populated depending on
+        the mode:
+        - users mode: "<out_path>/<username>/<followers_file>" and "<out_path>/<username>/<friends_file>"
+        - tweets mode: "<out_path>/<query>/<followers_file>" and "<out_path>/<query>/<tweets_file>"
+        - likes mode: "<out_path>/<username>/<followers_file>" and "<out_path>/<username>/<tweets_file>"
 
     :param List[twitter.Api] apis: a list of Twitter API instances
     :param str target: screen-name of a target
-    :param bool are_users: true if the target is an user, false otherwise
+    :param Mode mode: operation mode, one of USERS, SEARCH, or LIKES.
     :param str nodes_to_consider: Nodes to consider in the graph: friends, followers or all.
     :param int max_tweets_count: maximum number of tweets fetched
     :param Path out_path: the path to the output directory
@@ -55,21 +74,28 @@ def fetch_users(apis, target, are_users, nodes_to_consider, max_tweets_count, ou
     :return: followers, friends, intersection of both, and union of both
     """
     followers = friends = []
-    if not are_users:
-        tweets = get_or_set(out_path / target / tweets_file,
-                            partial(fetch_tweets, search_query=target, api=apis[0], max_count=max_tweets_count),
-                            api_function=True)
-        print("Found {} tweets.".format(len(tweets)))
-        followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
-        print("Found {} unique authors.".format(len(set(fol["id"] for fol in followers))))
-        get_or_set(out_path / target / followers_file, followers, api_function=False)
-    else:
+    if mode == Mode.USERS:
         if nodes_to_consider in ["followers", "all"]:
             followers = fetch_users_paged(apis, target, api_func='GetFollowersPaged',
                                           out_file=out_path / target / followers_file)
         if nodes_to_consider in ["friends", "all"]:
             friends = fetch_users_paged(apis, target, api_func='GetFriendsPaged',
                                         out_file=out_path / target / friends_file)
+    else:
+        if mode == Mode.SEARCH:
+            tweets = get_or_set(out_path / target / tweets_file,
+                            partial(fetch_tweets, search_query=target, api=apis[0], max_count=max_tweets_count),
+                            api_function=True)
+        elif mode == Mode.LIKES:
+            tweets = get_or_set(out_path / target / tweets_file,
+                                partial(fetch_likes, user=target, api=apis[0], max_count=max_tweets_count),
+                                api_function=True)
+        else:
+            raise ValueError("Unknown mode")
+        print("Found {} tweets.".format(len(tweets)))
+        followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
+        print("Found {} unique authors.".format(len(set(fol["id"] for fol in followers))))
+        get_or_set(out_path / target / followers_file, followers, api_function=False)
 
     followers_ids = [user["id"] for user in followers]
     mutuals = [user["id"] for user in friends if user["id"] in followers_ids]
@@ -162,6 +188,23 @@ def fetch_tweets(search_query, api, max_count=2000):
                                count=100,
                                result_type="recent",
                                max_id=max_id)
+        all_tweets.extend(tweets)
+        print(f"Found {len(all_tweets)}/{max_count} tweets.")
+        if len(tweets) < 100:
+            print("Done: no more tweets.")
+            break
+        max_id = min(tweet.id for tweet in tweets)
+    print(f"First & last tweet dates are: {all_tweets[0].created_at} - {all_tweets[-1].created_at}")
+    return all_tweets
+
+
+# TODO: figure out what to do if the user wants to fetch all likes with no limit.
+def fetch_likes(user, api, max_count=2000):
+    all_tweets, max_id = [], None
+    while len(all_tweets) < max_count:
+        tweets = api.GetFavorites(screen_name=user,
+                                  count=100,
+                                  max_id=max_id)
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
         if len(tweets) < 100:
@@ -273,11 +316,14 @@ def main():
 
     try:
         search_query = options["<query>"].split(',')
-        are_users = True if options["users"] else False
+        if options["<mode>"] not in ["users", "search", "likes"]:
+            raise Exception("Mode must be one of 'users', 'search', 'likes'.")
+        else:
+            mode = {"users": Mode.USERS, "search": Mode.SEARCH, "likes": Mode.LIKES}[options["<mode>"]]
         nodes_to_consider = options["--nodes-to-consider"]
         for target in search_query:
             print("Process query {}".format(target))
-            followers, friends, mutuals, all_users = fetch_users(apis, target, are_users, nodes_to_consider,
+            followers, friends, mutuals, all_users = fetch_users(apis, target, mode, nodes_to_consider,
                                                                  int(options["--max-tweets-count"]),
                                                                  Path(options["--out"]))
             users = {"followers": followers, "friends": friends, "all": all_users,
