@@ -14,7 +14,7 @@ Options:
   --credentials <file>         Path of the credentials for Twitter API [default: credentials.json].
   --excluded <file>            Path of the list of excluded users [default: excluded.json].
   --out <path>                 Directory of output files [default: out].
-  --run-http-server            Run an HTTP server to visualize the graph in you browser with d3.js.
+  --run-http-server            Run an HTTP server to visualize the graph in your browser with d3.js.
 """
 from functools import partial
 from time import sleep
