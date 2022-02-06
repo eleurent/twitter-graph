@@ -134,7 +134,7 @@ def fetch_friendships(apis, users, excluded, out, target,
         Fetch the friends of a list of users from Twitter API
     :param List[twitter.Api] apis: a list of Twitter API instances
     :param list users: the users whose friends to look for
-    :param list excluded: path to a file containing the screen names of users whose friends not to look for
+    :param Path excluded: path to a file containing the screen names of users whose friends not to look for
     :param Path out: the path to output directory
     :param str target: the target query name
     :param bool stop_on_rate_limit: stop fetching when a rate limit is raised
