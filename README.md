@@ -112,12 +112,14 @@ Then, install requirements with
 and finally run the script `fetch_data.py`.
 
 ```
-Usage: fetch_data (users | tweets) <query>  [options]
-
-Fetch a list of targets from Twitter API.
-- In the users mode, <query> refers to usernames, and we get their friends and followers.
-- In the tweets mode, <query> refers to a search query, and we get the users of the resulting tweets.
-
+Usage: fetch_data <mode> <query> [options]
+Fetch a list of targets from Twitter API, following the given <mode>.
+- In the 'users' mode, <query> refers to usernames, and we get their friends and followers.
+- In the 'search' mode, <query> refers to a search query, and we get the users of the resulting tweets.
+- In the 'likes' mode, <query> refers to usernames, and we get the users of the tweets they have liked.
+Arguments:
+  <mode>                       Mode of data fetching. Must be one of 'users', 'search', or 'likes'.
+  <query>                      The username or search query for which to fetch data, depending on the mode.
 Options:
   -h --help                    Show this screen.
   --max-tweets-count <type>    Maximum number of tweets to fetch before stopping. [default: 2500].
@@ -127,10 +129,10 @@ Options:
   --credentials <file>         Path of the credentials for Twitter API [default: credentials.json].
   --excluded <file>            Path of the list of excluded users [default: excluded.json].
   --out <path>                 Directory of output files [default: out].
-  --run-http-server            Run an HTTP server to visualize the graph in you browser with d3.js.
+  --run-http-server            Run an HTTP server to visualize the graph in your browser with d3.js.
 ```
 
-In the `user` mode, you can enter a username and the script will start by getting the list of their friends and followers, before going through these accounts one by one in order to build the edges of the graph.
+In the `users` mode, you can enter a username and the script will start by getting the list of their friends and followers, before going through these accounts one by one in order to build the edges of the graph.
 
 ```console
 $ python3 fetch_data.py users eleurent
@@ -141,12 +143,12 @@ Found 2406 friends.
 [3/2406] Fetching friends of @Limericking
 ```
 
-Alternatively, in the `tweets` mode, you can enter a search query, and the script will the corresponding tweets and their authors.
+Alternatively, in the `search` mode, you can enter a search query, and the script will pull tweets matching the search query along with their authors.
 
 Note that Twitter monetizes historical search results through Gnip, and that you will only be able to access the previous seven days worth of tweets through that endpoint.
 
 ```console
-$ python3 fetch_data.py tweets #AcademicChatter --max-tweets-count=200
+$ python3 fetch_data.py search #AcademicChatter --max-tweets-count=200
 Found 100/200 tweets.
 Found 200/200 tweets.
 [1/200] Fetching friends of @Dr_Meming
@@ -154,7 +156,17 @@ Found 200/200 tweets.
 [3/200] Fetching friends of @GrumpyReviewer2
 ```
 
-Since Twitter limits the rate of its API to 15 requests per window of 15 minutes, this is going to take a while.
+Finally, in the `likes` mode, you can enter a username and the script will fetch all tweets favorited by the user and their authors.
+
+```console
+$ python3 fetch_data.py likes eleurent --max-tweets-count=200
+Found 99/200 tweets.
+[0] Fetching friends of @sbuggames
+[1] Fetching friends of @C195__TeViNaMi
+[2] Fetching friends of @singletau
+```
+
+Since Twitter limits the rate of its API to 15 requests per window of 15 minutes, running the script is going to take a while.
 In order to interrupt and resume the requests at any time, a very simple caching system immediately exports the requests results to a local json file.
 
 ```
