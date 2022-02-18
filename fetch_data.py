@@ -21,6 +21,7 @@ Options:
   --out <path>                 Directory of output files [default: out].
   --run-http-server            Run an HTTP server to visualize the graph in your browser with d3.js.
   --save_frequency <type>     Number of account between each save in cache. [default: 15].
+  --filtering <type>          Filter to include only a subset of information for each account: full, light, min [default: full]
 """
 from functools import partial
 from time import sleep
@@ -35,7 +36,8 @@ from enum import Enum
 
 
 TWITTER_RATE_LIMIT_ERROR = 88
-
+COLUMNS_TO_EXPORT_MINIMUM = ["name","screen_name","followers_count","friends_count","created_at","default_profile_image","Label"]
+COLUMNS_TO_EXPORT_LIGHT = ["description"]
 
 class Mode(Enum):
     USERS = 1
@@ -258,7 +260,15 @@ def save_to_graph(users, friendships, out_path, target, edges_ratio=1.0):
     users_df["Label"] = users_df["name"]
     out_path.parent.mkdir(parents=True, exist_ok=True)
     nodes_path = out_path / target / "nodes.csv"
-    users_df.to_csv(nodes_path, index_label="Id")
+    if filtering == "full":
+        users_df.to_csv(nodes_path, index_label="Id")
+    else:
+        columns_to_export = []
+        if filtering == "light":
+            columns_to_export = COLUMNS_TO_EXPORT_LIGHT + COLUMNS_TO_EXPORT_MINIMUM
+        elif filtering == "minimum":
+            columns_to_export = COLUMNS_TO_EXPORT_MINIMUM
+        users_df.to_csv(nodes_path, index_label="Id", columns=columns_to_export)
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
     print("Start calculated edge")
     edges_df = pd.DataFrame.from_dict(friendships, orient='index')
@@ -302,7 +312,7 @@ def main():
                                             save_frequency=int(options["--save_frequency"]),
                                             stop_on_rate_limit=options["--stop-on-rate-limit"],
                                             friends_restricted_to=all_users)
-            save_to_graph(users, friendships, Path(options["--out"]), target,
+            save_to_graph(users, friendships, Path(options["--out"]), target, filtering=options["--filtering"],
                           edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
     except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
         print(e)  # Why do I get these?
