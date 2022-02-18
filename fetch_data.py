@@ -20,6 +20,7 @@ Options:
   --excluded <file>            Path of the list of excluded users [default: excluded.json].
   --out <path>                 Directory of output files [default: out].
   --run-http-server            Run an HTTP server to visualize the graph in your browser with d3.js.
+  --save_frequency <type>     Number of account between each save in cache. [default: 15].
 """
 from functools import partial
 from time import sleep
@@ -127,6 +128,7 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
 
 
 def fetch_friendships(apis, users, excluded, out, target,
+                      save_frequency=15,
                       stop_on_rate_limit=False,
                       friends_restricted_to=None,
                       friendships_file="cache/friendships.json"):
@@ -162,6 +164,8 @@ def fetch_friendships(apis, users, excluded, out, target,
                         next_cursor, previous_cursor, new_user_friends,  = \
                             apis[api_idx].GetFriendIDsPaged(user_id=user["id"], stringify_ids=True, cursor=next_cursor)
                         user_friends = user_friends + new_user_friends
+                        if not user_friends:
+                            user_friends = [""]
                 except twitter.error.TwitterError as e:
                     if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
                         if stop_on_rate_limit:
@@ -177,7 +181,8 @@ def fetch_friendships(apis, users, excluded, out, target,
             common_friends = set(user_friends).intersection(users_ids)
             friendships[str(user["id"])] = list(common_friends)
             # Write to file
-            get_or_set(out / target / friendships_file, friendships.copy(), force=True)
+            if i % save_frequency == 0:
+                get_or_set(out / target / friendships_file, friendships.copy(), force=True)
     return friendships
 
 
@@ -329,6 +334,7 @@ def main():
             users = {"followers": followers, "friends": friends, "all": all_users,
                      "few": random.choices(followers, k=min(100, len(followers)))}[options["--nodes-to-consider"]]
             friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]), target,
+                                            save_frequency=int(options["--save_frequency"]),
                                             stop_on_rate_limit=options["--stop-on-rate-limit"],
                                             friends_restricted_to=all_users)
             save_to_graph(users, friendships, Path(options["--out"]), target,
