@@ -164,16 +164,13 @@ def fetch_friendships(apis, users, excluded, out, target,
         else:
             print(f"[{len(friendships)}] Fetching friends of @{user['screen_name']}")
             user_friends = []
-            while not user_friends:
+            previous_cursor, next_cursor = 0, -1
+            while previous_cursor != next_cursor and next_cursor != 0:
                 try:
-                    next_cursor = -1
-                    previous_cursor = 0
-                    while previous_cursor != next_cursor and next_cursor != 0:
-                        next_cursor, previous_cursor, new_user_friends,  = \
-                            apis[api_idx].GetFriendIDsPaged(user_id=user["id"], stringify_ids=True, cursor=next_cursor)
-                        user_friends = user_friends + new_user_friends
-                        if not user_friends:
-                            user_friends = [""]
+                    next_cursor, previous_cursor, new_user_friends = apis[api_idx].GetFriendIDsPaged(user_id=user["id"],
+                                                                                                     stringify_ids=True,
+                                                                                                     cursor=next_cursor)
+                    user_friends += new_user_friends
                 except twitter.error.TwitterError as e:
                     if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
                         if stop_on_rate_limit:
@@ -184,7 +181,8 @@ def fetch_friendships(apis, users, excluded, out, target,
                         sleep(15)
                     else:
                         print("...but it failed. Error: {}".format(e))
-                        user_friends = [""]
+                        user_friends = []
+                        break
 
             common_friends = set(user_friends).intersection(users_ids)
             friendships[str(user["id"])] = list(common_friends)
