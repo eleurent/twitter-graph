@@ -111,10 +111,15 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
         try:
             print("Using {} cursor.".format(next_cursor))
             # follower.json serve as a reference, it should not be used with cache
-            new_users, next_cursor, previous_cursor = set_paged_results(
-                out_file, partial(getattr(apis[api_idx], api_func), screen_name=screen_name, count=200,
-                                  cursor=next_cursor), api_function=True)
-            users += new_users
+            if api_func == "GetFollowersPaged":
+                next_cursor, previous_cursor, new_users = apis[api_idx].GetFollowersPaged(screen_name=screen_name,
+                                                                                           count=200,
+                                                                                           cursor=next_cursor)
+            elif api_func == "GetFriendsPaged":
+                next_cursor, previous_cursor, new_users = apis[api_idx].GetFriendsPaged(screen_name=screen_name,
+                                                                                           count=200,
+                                                                                           cursor=next_cursor)
+            users += [user._json for user in new_users]
             print(f"{api_func} found {len(users)} users.")
         except twitter.error.TwitterError as e:
             if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
@@ -123,6 +128,7 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
                 sleep(1)
             else:
                 print("...but it failed. Error: {}".format(e))
+    get_or_set(out_file, users, force=True, api_function=False)
     return users
 
 
@@ -240,36 +246,7 @@ def get_or_set(path, value=None, force=False, api_function=False):
             json.dump(value, f, indent=2)
     return value
 
-
-def set_paged_results(path, value=None, api_function=False):
-    """
-        Write a value to the file.
-    :param Path path: file path
-    :param value: the value to write to the file, if known
-    :param bool api_function: if the value an API function? If yes, value must be a callback for the API call.
-    :return: the written value
-    """
-    next_cursor = -1
-    if api_function:
-        result = value()
-        value = [item._json for item in result[2]]
-        next_cursor = result[0]
-        previous_cursor = result[1]
-
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w+") as f:
-            json.dump(value, f, indent=2)
-    else:
-        with path.open("r+") as f:
-            data = json.load(f)
-            data = data+value
-            f.seek(0)
-            json.dump(data, f, indent=2)
-    return value, next_cursor, previous_cursor
-
-
-def save_to_graph(users, friendships, out_path, target, edges_ratio=1.0, protected_users=None):
+def save_to_graph(users, friendships, out_path, target, edges_ratio=1.0):
     columns = [field for field in users[0] if field not in ["id", "id_str"]]
     nodes = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
     users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
@@ -278,24 +255,12 @@ def save_to_graph(users, friendships, out_path, target, edges_ratio=1.0, protect
     nodes_path = out_path / target / "nodes.csv"
     users_df.to_csv(nodes_path, index_label="Id")
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
-    users_ids = [user["id_str"] for user in users]
-
-    if edges_ratio < 1:
-        protected_users = [user["id_str"] for user in protected_users] if protected_users else []
-        edges, protected_edges = [], []
-        for source, source_friends in friendships.items():
-            if source not in users_ids:
-                continue
-            if source in protected_users:
-                protected_edges += [[source, target] for target in source_friends if target in users_ids]
-            else:
-                edges += [[source, target] for target in source_friends if target in users_ids]
-        edges = random.choices(edges, k=int(edges_ratio * len(edges)))
-        edges += protected_edges
-    else:
-        edges = [[source, target] for source, source_friends in friendships.items() if source in users_ids
-                 for target in source_friends if target in users_ids]
-    edges_df = pd.DataFrame(edges, columns=['Source', 'Target'])
+    print("Start calculated edge")
+    edges_df = pd.DataFrame.from_dict(friendships, orient='index')
+    edges_df = edges_df.stack().to_frame().reset_index().drop('level_1', axis=1)
+    edges_df.columns = ['Source', 'Target']
+    if edges_ratio != 1.0:
+        edges_df = edges_df.sample(frac = edges_ratio)
     edges_path = out_path / target / "edges.csv"
     edges_df.to_csv(edges_path)
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
