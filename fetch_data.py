@@ -36,8 +36,10 @@ from enum import Enum
 
 
 TWITTER_RATE_LIMIT_ERROR = 88
-COLUMNS_TO_EXPORT_MINIMUM = ["name","screen_name","followers_count","friends_count","created_at","default_profile_image","Label"]
+COLUMNS_TO_EXPORT_MINIMUM = ["name", "screen_name", "followers_count", "friends_count", "created_at",
+                             "default_profile_image", "Label"]
 COLUMNS_TO_EXPORT_LIGHT = ["description"]
+
 
 class Mode(Enum):
     USERS = 1
@@ -112,7 +114,6 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
     users = []
     while next_cursor != 0:
         try:
-            print("Using {} cursor.".format(next_cursor))
             # follower.json serve as a reference, it should not be used with cache
             if api_func == "GetFollowersPaged":
                 next_cursor, previous_cursor, new_users = apis[api_idx].GetFollowersPaged(screen_name=screen_name,
@@ -300,7 +301,7 @@ def main():
             mode = {"users": Mode.USERS, "search": Mode.SEARCH, "likes": Mode.LIKES}[options["<mode>"]]
         nodes_to_consider = options["--nodes-to-consider"]
         for target in search_query:
-            print("Process query {}".format(target))
+            print(f"Processing query {options['<mode>']}:{target}.")
             followers, friends, mutuals, all_users = fetch_users(apis, target, mode, nodes_to_consider,
                                                                  int(options["--max-tweets-count"]),
                                                                  Path(options["--out"]))
