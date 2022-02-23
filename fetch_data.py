@@ -252,7 +252,7 @@ def get_or_set(path, value=None, force=False, api_function=False):
             json.dump(value, f, indent=2)
     return value
 
-def save_to_graph(users, friendships, out_path, target, edges_ratio=1.0):
+def save_to_graph(users, friendships, out_path, target, filtering, edges_ratio=1.0):
     columns = [field for field in users[0] if field not in ["id", "id_str"]]
     nodes = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
     users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
@@ -312,7 +312,7 @@ def main():
                                             stop_on_rate_limit=options["--stop-on-rate-limit"],
                                             friends_restricted_to=all_users)
             save_to_graph(users, friendships, Path(options["--out"]), target, filtering=options["--filtering"],
-                          edges_ratio=float(options["--edges-ratio"]), protected_users=mutuals)
+                          edges_ratio=float(options["--edges-ratio"]))
     except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
         print(e)  # Why do I get these?
         main()  # Retry!
