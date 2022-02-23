@@ -34,6 +34,7 @@ from docopt import docopt
 from pathlib import Path
 from enum import Enum
 
+from serve_http import serve_http
 
 TWITTER_RATE_LIMIT_ERROR = 88
 COLUMNS_TO_EXPORT_MINIMUM = ["name", "screen_name", "followers_count", "friends_count", "created_at",
@@ -302,6 +303,7 @@ def main():
         nodes_to_consider = options["--nodes-to-consider"]
         for target in search_query:
             print(f"Processing query {options['<mode>']}:{target}.")
+            out_path = Path(options["--out"]) / target
             followers, friends, mutuals, all_users = fetch_users(apis, target, mode, nodes_to_consider,
                                                                  int(options["--max-tweets-count"]),
                                                                  Path(options["--out"]))
@@ -313,6 +315,8 @@ def main():
                                             friends_restricted_to=all_users)
             save_to_graph(users, friendships, Path(options["--out"]), target, filtering=options["--filtering"],
                           edges_ratio=float(options["--edges-ratio"]))
+            if options["--run-http-server"]:
+                serve_http(out_path)
     except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
         print(e)  # Why do I get these?
         main()  # Retry!
