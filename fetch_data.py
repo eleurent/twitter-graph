@@ -83,17 +83,17 @@ def fetch_users(apis, target, mode, nodes_to_consider, max_tweets_count, out_pat
     if mode == Mode.USERS:
         if nodes_to_consider in ["followers", "all"]:
             followers = fetch_users_paged(apis, target, api_func='GetFollowersPaged',
-                                          out_file=out_path / target / followers_file)
+                                          out_file=out_path / followers_file)
         if nodes_to_consider in ["friends", "all"]:
             friends = fetch_users_paged(apis, target, api_func='GetFriendsPaged',
-                                        out_file=out_path / target / friends_file)
+                                        out_file=out_path / friends_file)
     else:
         if mode == Mode.SEARCH:
-            tweets = get_or_set(out_path / target / tweets_file,
-                            partial(fetch_tweets, search_query=target, api=apis[0], max_count=max_tweets_count),
-                            api_function=True)
+            tweets = get_or_set(out_path / tweets_file,
+                                partial(fetch_tweets, search_query=target, api=apis[0], max_count=max_tweets_count),
+                                api_function=True)
         elif mode == Mode.LIKES:
-            tweets = get_or_set(out_path / target / tweets_file,
+            tweets = get_or_set(out_path / tweets_file,
                                 partial(fetch_likes, user=target, api=apis[0], max_count=max_tweets_count),
                                 api_function=True)
         else:
@@ -101,7 +101,7 @@ def fetch_users(apis, target, mode, nodes_to_consider, max_tweets_count, out_pat
         print("Found {} tweets.".format(len(tweets)))
         followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
         print("Found {} unique authors.".format(len(set(fol["id"] for fol in followers))))
-        get_or_set(out_path / target / followers_file, followers, api_function=False)
+        get_or_set(out_path / followers_file, followers, api_function=False)
 
     followers_ids = [user["id"] for user in followers]
     mutuals = [user["id"] for user in friends if user["id"] in followers_ids]
@@ -116,6 +116,7 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
     while next_cursor != 0:
         try:
             # follower.json serve as a reference, it should not be used with cache
+            new_users = []
             if api_func == "GetFollowersPaged":
                 next_cursor, previous_cursor, new_users = apis[api_idx].GetFollowersPaged(screen_name=screen_name,
                                                                                            count=200,
@@ -253,13 +254,14 @@ def get_or_set(path, value=None, force=False, api_function=False):
             json.dump(value, f, indent=2)
     return value
 
-def save_to_graph(users, friendships, out_path, target, filtering, edges_ratio=1.0):
+
+def save_to_graph(users, friendships, out_path, filtering, edges_ratio=1.0):
     columns = [field for field in users[0] if field not in ["id", "id_str"]]
     nodes = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
     users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
     users_df["Label"] = users_df["name"]
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    nodes_path = out_path / target / "nodes.csv"
+    nodes_path = out_path / "nodes.csv"
     if filtering == "full":
         users_df.to_csv(nodes_path, index_label="Id")
     else:
@@ -275,8 +277,8 @@ def save_to_graph(users, friendships, out_path, target, filtering, edges_ratio=1
     edges_df = edges_df.stack().to_frame().reset_index().drop('level_1', axis=1)
     edges_df.columns = ['Source', 'Target']
     if edges_ratio != 1.0:
-        edges_df = edges_df.sample(frac = edges_ratio)
-    edges_path = out_path / target / "edges.csv"
+        edges_df = edges_df.sample(frac=edges_ratio)
+    edges_path = out_path / "edges.csv"
     edges_df.to_csv(edges_path)
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
     return nodes_path, edges_path
@@ -306,14 +308,14 @@ def main():
             out_path = Path(options["--out"]) / target
             followers, friends, mutuals, all_users = fetch_users(apis, target, mode, nodes_to_consider,
                                                                  int(options["--max-tweets-count"]),
-                                                                 Path(options["--out"]))
+                                                                 out_path)
             users = {"followers": followers, "friends": friends, "all": all_users,
                      "few": random.choices(followers, k=min(100, len(followers)))}[options["--nodes-to-consider"]]
             friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]), target,
                                             save_frequency=int(options["--save_frequency"]),
                                             stop_on_rate_limit=options["--stop-on-rate-limit"],
                                             friends_restricted_to=all_users)
-            save_to_graph(users, friendships, Path(options["--out"]), target, filtering=options["--filtering"],
+            save_to_graph(users, friendships, out_path, filtering=options["--filtering"],
                           edges_ratio=float(options["--edges-ratio"]))
             if options["--run-http-server"]:
                 serve_http(out_path)
