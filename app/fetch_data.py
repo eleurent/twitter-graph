@@ -90,7 +90,7 @@ def fetch_users(apis, target, mode, nodes_to_consider, max_tweets_count, out_pat
     else:
         if mode == Mode.SEARCH:
             tweets = get_or_set(out_path / tweets_file,
-                                partial(fetch_tweets, search_query=target, api=apis[0], max_count=max_tweets_count),
+                                partial(fetch_tweets, search_query=target, apis=apis, max_count=max_tweets_count),
                                 api_function=True)
         elif mode == Mode.LIKES:
             tweets = get_or_set(out_path / tweets_file,
@@ -195,13 +195,24 @@ def fetch_friendships(apis, users, excluded, out, target,
     return friendships
 
 
-def fetch_tweets(search_query, api, max_count=2000):
-    all_tweets, max_id = [], None
+def fetch_tweets(search_query, apis, max_count=1000000):
+    all_tweets, tweets, max_id = [], [], None
+    max_id = 0
+    api_idx = 0
     while len(all_tweets) < max_count:
-        tweets = api.GetSearch(term=search_query,
-                               count=100,
-                               result_type="recent",
-                               max_id=max_id)
+        try:
+            tweets = apis[api_idx].GetSearch(term=search_query,
+                                               count=100,
+                                               result_type="recent",
+                                               max_id=max_id)
+        except twitter.error.TwitterError as e:
+            if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                api_idx = (api_idx + 1) % len(apis)
+                print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+            else:
+                print("...but it failed. Error: {}".format(e))
+                user_friends = [""]
+
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
         if len(tweets) < 100:
