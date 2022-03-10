@@ -104,6 +104,17 @@ Some clusters also seem to have disappeared, namely the ![#ff0](https://placehol
 
 To get access to the Twitter API, you must first register on the [Twitter Developer Portal](https://developer.twitter.com/en/apps). Then, create an app (with read permissions) and record your authentication keys in `credentials.json`.
 
+```
+[
+  {
+    "api_key": "www",
+    "api_secret_key": "xxx",
+    "access_token": "yyy",
+    "access_token_secret": "zzz"
+  }
+]
+```
+
 **NEW!** You can now declare several standalone apps on the Twitter Developer Portal (up to 10) and save all the corresponding keys in `credentials.json`. These keys will be used to send the API calls in parallel, thus yielding a **x10 speedup**.
 
 Then, install requirements with
@@ -191,6 +202,24 @@ Successfully exported 128 edges to out\graph.edges.csv.
 ```
 
 Finally, note that you can skip an account by filling out the `exclude.json` file.
+
+### Step 1. (bis) Get the data with docker
+
+Fill the `credentials.json` with your keys
+
+Then build the docker image using `docker-compose`
+
+```
+$ docker-compose build
+```
+
+Finally fetch the data by running the script from the docker image
+
+```
+$ docker-compose run app python fetch_data.py users <your_username> --out /out
+```
+
+Data output should be now in `/out` folder at the root of your project directory.
 
 ### Step 2. (optional) Visualize with [d3.js](https://d3js.org/)
 

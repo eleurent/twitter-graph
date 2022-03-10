@@ -1,0 +1,4 @@
+docopt
+pandas
+python-twitter
+requests
