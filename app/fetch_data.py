@@ -183,9 +183,14 @@ def fetch_friendships(apis, users, excluded, out, target,
                         print(f"You reached the rate limit. Moving to next api: #{api_idx}")
                         sleep(15)
                     else:
+                        print(f"failed at api: #{api_idx}")
                         print("...but it failed. Error: {}".format(e))
                         user_friends = []
                         break
+                except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
+                    print(e)  # Why do I get these?
+                    sleep(5)
+
 
             common_friends = set(user_friends).intersection(users_ids)
             friendships[str(user["id"])] = list(common_friends)
