@@ -197,6 +197,7 @@ def fetch_friendships(apis, users, excluded, out, target,
             # Write to file
             if i % save_frequency == 0:
                 get_or_set(out / target / friendships_file, friendships.copy(), force=True)
+    get_or_set(out / target / friendships_file, friendships.copy(), force=True)
     return friendships
 
 
