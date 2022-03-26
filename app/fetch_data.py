@@ -285,10 +285,10 @@ def save_to_graph(users, friendships, out_path, filtering, edges_ratio=1.0):
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
     print("Start calculated edge")
     edges_df = pd.DataFrame.from_dict(friendships, orient='index')
-    edges_df = edges_df.stack().to_frame().reset_index().drop('level_1', axis=1)
-    edges_df.columns = ['Source', 'Target']
     if edges_ratio != 1.0:
         edges_df = edges_df.sample(frac=edges_ratio)
+    edges_df = edges_df.stack().to_frame().reset_index().drop('level_1', axis=1)
+    edges_df.columns = ['Source', 'Target']
     edges_path = out_path / "edges.csv"
     edges_df.to_csv(edges_path)
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
