@@ -90,7 +90,7 @@ def fetch_users(apis, target, mode, nodes_to_consider, max_tweets_count, out_pat
     else:
         if mode == Mode.SEARCH:
             tweets = get_or_set(out_path / tweets_file,
-                                partial(fetch_tweets, search_query=target, api=apis[0], max_count=max_tweets_count),
+                                partial(fetch_tweets, search_query=target, apis=apis, max_count=max_tweets_count),
                                 api_function=True)
         elif mode == Mode.LIKES:
             tweets = get_or_set(out_path / tweets_file,
@@ -183,25 +183,42 @@ def fetch_friendships(apis, users, excluded, out, target,
                         print(f"You reached the rate limit. Moving to next api: #{api_idx}")
                         sleep(15)
                     else:
+                        print(f"failed at api: #{api_idx}")
                         print("...but it failed. Error: {}".format(e))
                         user_friends = []
                         break
+                except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
+                    print(e)  # Why do I get these?
+                    sleep(5)
+
 
             common_friends = set(user_friends).intersection(users_ids)
             friendships[str(user["id"])] = list(common_friends)
             # Write to file
             if i % save_frequency == 0:
                 get_or_set(out / target / friendships_file, friendships.copy(), force=True)
+    get_or_set(out / target / friendships_file, friendships.copy(), force=True)
     return friendships
 
 
-def fetch_tweets(search_query, api, max_count=2000):
-    all_tweets, max_id = [], None
+def fetch_tweets(search_query, apis, max_count=1000000):
+    all_tweets, tweets, max_id = [], [], None
+    max_id = 0
+    api_idx = 0
     while len(all_tweets) < max_count:
-        tweets = api.GetSearch(term=search_query,
-                               count=100,
-                               result_type="recent",
-                               max_id=max_id)
+        try:
+            tweets = apis[api_idx].GetSearch(term=search_query,
+                                               count=100,
+                                               result_type="recent",
+                                               max_id=max_id)
+        except twitter.error.TwitterError as e:
+            if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                api_idx = (api_idx + 1) % len(apis)
+                print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+            else:
+                print("...but it failed. Error: {}".format(e))
+                user_friends = [""]
+
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
         if len(tweets) < 100:
@@ -274,10 +291,10 @@ def save_to_graph(users, friendships, out_path, filtering, edges_ratio=1.0):
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
     print("Start calculated edge")
     edges_df = pd.DataFrame.from_dict(friendships, orient='index')
-    edges_df = edges_df.stack().to_frame().reset_index().drop('level_1', axis=1)
-    edges_df.columns = ['Source', 'Target']
     if edges_ratio != 1.0:
         edges_df = edges_df.sample(frac=edges_ratio)
+    edges_df = edges_df.stack().to_frame().reset_index().drop('level_1', axis=1)
+    edges_df.columns = ['Source', 'Target']
     edges_path = out_path / "edges.csv"
     edges_df.to_csv(edges_path)
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
