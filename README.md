@@ -32,7 +32,7 @@ By running a clustering algorithm [1, 2], several communities are automatically 
 * ![#ff0](https://place-hold.it/15/ff0/000000?text=+) entertainment accounts: youtubers, cartoonists, video games.
 
 As we zoom in closer, we can find additional smaller clusters:
-* ![#f90](https://place-hold.it/15/f90/000000?text=+) the SequeL lab, where I am doing my PhD, and French researchers in theoretical ML
+* ![#f90](https://place-hold.it/15/f90/000000?text=+) the Inria SequeL lab, where I did my PhD, and French researchers in theoretical ML
 * ![#b0b](https://place-hold.it/15/b0b/000000?text=+) Anglo-Saxon academia;
 * ![#09f](https://place-hold.it/15/09f/000000?text=+) students and staff of Mines ParisTech, my university;
 * ![#cf5](https://place-hold.it/15/cf5/000000?text=+) French tech, startups and entrepreneurs
