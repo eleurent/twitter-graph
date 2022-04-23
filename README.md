@@ -115,6 +115,8 @@ To get access to the Twitter API, you must first register on the [Twitter Develo
 ]
 ```
 
+Moreover, this script currently relies Twitter's API v1.1, for which [an Elevated access is required](https://developer.twitter.com/en/docs/twitter-api/getting-started/about-twitter-api#v2-access-leve), so you will have to submit a request for elevated access.
+
 **NEW!** You can now declare several standalone apps on the Twitter Developer Portal (up to 10) and save all the corresponding keys in `credentials.json`. These keys will be used to send the API calls in parallel, thus yielding a **x10 speedup**.
 
 Then, install requirements with
