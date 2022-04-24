@@ -138,13 +138,14 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
     return users
 
 
-def fetch_friendships(apis, users, excluded, out, target,
+def fetch_friendships(friendships, apis, users, excluded, out, target,
                       save_frequency=15,
                       stop_on_rate_limit=False,
                       friends_restricted_to=None,
-                      friendships_file="cache/friendships.json"):
+                      friendships_file="cache/friendships.json") -> None:
     """
         Fetch the friends of a list of users from Twitter API
+    :param Dict[str, List[str] friendships: a dictionary holding the list of friends ids, for each user id
     :param List[twitter.Api] apis: a list of Twitter API instances
     :param list users: the users whose friends to look for
     :param Path excluded: path to a file containing the screen names of users whose friends not to look for
@@ -154,7 +155,7 @@ def fetch_friendships(apis, users, excluded, out, target,
     :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
     """
-    friendships = get_or_set(out / target / friendships_file, {})
+    friendships.update(get_or_set(out / target / friendships_file, friendships))
     friends_restricted_to = friends_restricted_to if friends_restricted_to else users
     users_ids = set([str(user["id"]) for user in friends_restricted_to])
     excluded = [s.lower() for s in get_or_set(excluded, [])]
@@ -191,14 +192,12 @@ def fetch_friendships(apis, users, excluded, out, target,
                     print(e)  # Why do I get these?
                     sleep(5)
 
-
             common_friends = set(user_friends).intersection(users_ids)
             friendships[str(user["id"])] = list(common_friends)
             # Write to file
             if i % save_frequency == 0:
                 get_or_set(out / target / friendships_file, friendships.copy(), force=True)
     get_or_set(out / target / friendships_file, friendships.copy(), force=True)
-    return friendships
 
 
 def fetch_tweets(search_query, apis, max_count=1000000):
@@ -328,10 +327,14 @@ def main():
                                                                  out_path)
             users = {"followers": followers, "friends": friends, "all": all_users,
                      "few": random.choices(followers, k=min(100, len(followers)))}[options["--nodes-to-consider"]]
-            friendships = fetch_friendships(apis, users, Path(options["--excluded"]), Path(options["--out"]), target,
-                                            save_frequency=int(options["--save_frequency"]),
-                                            stop_on_rate_limit=options["--stop-on-rate-limit"],
-                                            friends_restricted_to=all_users)
+            try:
+                friendships = {}
+                fetch_friendships(friendships, apis, users, Path(options["--excluded"]), Path(options["--out"]), target,
+                                  save_frequency=int(options["--save_frequency"]),
+                                  stop_on_rate_limit=options["--stop-on-rate-limit"],
+                                  friends_restricted_to=all_users)
+            except KeyboardInterrupt:
+                print('KeyboardInterrupt. Exporting the graph...')
             save_to_graph(users, friendships, out_path, filtering=options["--filtering"],
                           edges_ratio=float(options["--edges-ratio"]))
             if options["--run-http-server"]:
