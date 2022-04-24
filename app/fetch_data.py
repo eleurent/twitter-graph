@@ -149,6 +149,7 @@ def fetch_friendships(friendships, apis, users, excluded, out, target,
     :param Path excluded: path to a file containing the screen names of users whose friends not to look for
     :param Path out: the path to output directory
     :param str target: the target query name
+    :param int save_frequency: number of account between each save in cache
     :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
     """
@@ -321,8 +322,8 @@ def main():
                                                                  out_path)
             users = {"followers": followers, "friends": friends, "all": all_users,
                      "few": random.choices(followers, k=min(100, len(followers)))}[options["--nodes-to-consider"]]
+            friendships = {}
             try:
-                friendships = {}
                 fetch_friendships(friendships, apis, users, Path(options["--excluded"]), Path(options["--out"]), target,
                                   save_frequency=int(options["--save_frequency"]),
                                   friends_restricted_to=all_users)
