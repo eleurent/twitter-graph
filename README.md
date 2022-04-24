@@ -141,7 +141,6 @@ Arguments:
 Options:
   -h --help                    Show this screen.
   --max-tweets-count <type>    Maximum number of tweets to fetch before stopping. [default: 2500].
-  --stop-on-rate-limit         Stop fetching and export the graph when a rate limit is raised.
   --nodes-to-consider <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
   --edges-ratio <ratio>        Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
   --credentials <file>         Path of the credentials for Twitter API [default: credentials.json].
@@ -197,13 +196,12 @@ python fetch_data.py users eleurent
 [4/2406] Fetching friends of @Ariane_lis
 ```
 
-If you are too impatient and want to preview the graph with the data downloaded so far, use the `--stop-on-rate-limit` option.
+If you are too impatient and want to preview the graph with the data downloaded so far, you can use `CTRL + C` to interrupt fetching.
 
 The resulting graph will be exported to two .csv files containing the nodes and edges.
 ```
 [4/2406] Fetching friends of @Ariane_lis
-...but it failed. Error: [{'message': 'Rate limit exceeded', 'code': 88}]
-You reached the rate limit. Disable --stop-on-rate-limit or try again later.
+KeyboardInterrupt. Exporting the graph...
 Successfully exported 2406 nodes to out\graph.nodes.csv.
 Successfully exported 128 edges to out\graph.edges.csv.
 ```

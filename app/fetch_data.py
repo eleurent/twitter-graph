@@ -13,15 +13,14 @@ Arguments:
 Options:
   -h --help                    Show this screen.
   --max-tweets-count <type>    Maximum number of tweets to fetch before stopping. [default: 2500].
-  --stop-on-rate-limit         Stop fetching and export the graph when a rate limit is raised.
   --nodes-to-consider <type>   Nodes to consider in the graph: friends, followers or all. [default: followers].
   --edges-ratio <ratio>        Ratio of edges to export in the graph (chosen randomly among non-mutuals). [default: 1].
   --credentials <file>         Path of the credentials for Twitter API [default: credentials.json].
   --excluded <file>            Path of the list of excluded users [default: excluded.json].
   --out <path>                 Directory of output files [default: out].
   --run-http-server            Run an HTTP server to visualize the graph in your browser with d3.js.
-  --save_frequency <type>     Number of account between each save in cache. [default: 15].
-  --filtering <type>          Filter to include only a subset of information for each account: full, light, min [default: full]
+  --save_frequency <freq>      Number of account between each save in cache. [default: 15].
+  --filtering <type>           Filter to include only a subset of information for each account: full, light, min [default: full]
 """
 from functools import partial
 from time import sleep
@@ -140,7 +139,6 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
 
 def fetch_friendships(friendships, apis, users, excluded, out, target,
                       save_frequency=15,
-                      stop_on_rate_limit=False,
                       friends_restricted_to=None,
                       friendships_file="cache/friendships.json") -> None:
     """
@@ -151,7 +149,6 @@ def fetch_friendships(friendships, apis, users, excluded, out, target,
     :param Path excluded: path to a file containing the screen names of users whose friends not to look for
     :param Path out: the path to output directory
     :param str target: the target query name
-    :param bool stop_on_rate_limit: stop fetching when a rate limit is raised
     :param list friends_restricted_to: the set of potential friends to consider
     :param friendships_file: the friendships filename in the cache
     """
@@ -177,9 +174,6 @@ def fetch_friendships(friendships, apis, users, excluded, out, target,
                     user_friends += new_user_friends
                 except twitter.error.TwitterError as e:
                     if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
-                        if stop_on_rate_limit:
-                            print(f"You reached the rate limit. Stopping as required.")
-                            return friendships
                         api_idx = (api_idx + 1) % len(apis)
                         print(f"You reached the rate limit. Moving to next api: #{api_idx}")
                         sleep(15)
@@ -331,7 +325,6 @@ def main():
                 friendships = {}
                 fetch_friendships(friendships, apis, users, Path(options["--excluded"]), Path(options["--out"]), target,
                                   save_frequency=int(options["--save_frequency"]),
-                                  stop_on_rate_limit=options["--stop-on-rate-limit"],
                                   friends_restricted_to=all_users)
             except KeyboardInterrupt:
                 print('KeyboardInterrupt. Exporting the graph...')
