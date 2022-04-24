@@ -102,7 +102,7 @@ Some clusters also seem to have disappeared, namely the ![#ff0](https://placehol
 
 ### Step 1. Get the data
 
-To get access to the Twitter API, you must first register on the [Twitter Developer Portal](https://developer.twitter.com/en/apps). Then, create an app (with read permissions) and record your authentication keys in `credentials.json`.
+To get access to the Twitter API, you must first register on the [Twitter Developer Portal](https://developer.twitter.com/en/apps). Then, create an app (with read permissions) and record your authentication keys in `app/credentials.json`.
 
 ```
 [
@@ -119,8 +119,13 @@ Moreover, this script currently relies Twitter's API v1.1, for which [an Elevate
 
 **NEW!** You can now declare several standalone apps on the Twitter Developer Portal (up to 10) and save all the corresponding keys in `credentials.json`. These keys will be used to send the API calls in parallel, thus yielding a **x10 speedup**.
 
-Then, install requirements with
-```pip3 install -r requirements.txt```
+Then, set the working directory to `app`
+
+```cd <path-to-twitter-graph>/app```
+
+Install requirements with
+
+```pip install -r requirements.txt```
 
 and finally run the script `fetch_data.py`.
 
@@ -148,7 +153,7 @@ Options:
 In the `users` mode, you can enter a username and the script will start by getting the list of their friends and followers, before going through these accounts one by one in order to build the edges of the graph.
 
 ```console
-$ python3 fetch_data.py users eleurent
+$ python fetch_data.py users eleurent
 Found 841 followers.
 Found 2406 friends.
 [1/2406] Fetching friends of @Mehdi_Moussaid
@@ -161,7 +166,7 @@ Alternatively, in the `search` mode, you can enter a search query, and the scrip
 Note that Twitter monetizes historical search results through Gnip, and that you will only be able to access the previous seven days worth of tweets through that endpoint.
 
 ```console
-$ python3 fetch_data.py search #AcademicChatter --max-tweets-count=200
+$ python fetch_data.py search #AcademicChatter --max-tweets-count=200
 Found 100/200 tweets.
 Found 200/200 tweets.
 [1/200] Fetching friends of @Dr_Meming
@@ -172,7 +177,7 @@ Found 200/200 tweets.
 Finally, in the `likes` mode, you can enter a username and the script will fetch all tweets favorited by the user and their authors.
 
 ```console
-$ python3 fetch_data.py likes eleurent --max-tweets-count=200
+$ python fetch_data.py likes eleurent --max-tweets-count=200
 Found 99/200 tweets.
 [0] Fetching friends of @sbuggames
 [1] Fetching friends of @C195__TeViNaMi
@@ -185,7 +190,7 @@ In order to interrupt and resume the requests at any time, a very simple caching
 ```
 KeyboardInterrupt
 
-python3 fetch_data.py users eleurent
+python fetch_data.py users eleurent
 [1/2406] @Mehdi_Moussaid found in cache.
 [2/2406] @Inria_Lille found in cache.
 [3/2406] @Limericking found in cache.
