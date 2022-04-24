@@ -296,7 +296,7 @@ def save_to_graph(users, friendships, out_path, filtering, edges_ratio=1.0):
     edges_df = edges_df.stack().to_frame().reset_index().drop('level_1', axis=1)
     edges_df.columns = ['Source', 'Target']
     edges_path = out_path / "edges.csv"
-    edges_df.to_csv(edges_path)
+    edges_df.to_csv(edges_path, index_label="Id")
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
     return nodes_path, edges_path
 
