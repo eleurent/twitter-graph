@@ -22,8 +22,13 @@ Options:
   --save_frequency <freq>      Number of account between each save in cache. [default: 15].
   --filtering <type>           Filter to include only a subset of information for each account: full, light, min [default: full]
 """
+from __future__ import annotations
+
 from functools import partial
 from time import sleep
+import time
+from typing import List, Any, Iterable, Sequence, Tuple, Dict
+
 import requests
 import twitter
 import json
@@ -39,7 +44,14 @@ TWITTER_RATE_LIMIT_ERROR = 88
 COLUMNS_TO_EXPORT_MINIMUM = ["name", "screen_name", "followers_count", "friends_count", "created_at",
                              "default_profile_image", "Label"]
 COLUMNS_TO_EXPORT_LIGHT = ["description"]
-
+JSONType = list | dict
+user_id = str
+user_dict = dict
+status_dict = dict
+user_dicts = List[user_dict]
+user_ids = List[user_id]
+apis = List[twitter.Api]
+time_last_pull_apis: List[int] = []
 
 class Mode(Enum):
     USERS = 1
@@ -47,10 +59,14 @@ class Mode(Enum):
     LIKES = 3
 
 
-def fetch_users(apis, target, mode, nodes_to_consider, max_tweets_count, out_path,
+def fetch_users(apis: apis, target: str, mode: Mode, nodes_to_consider: str, max_tweets_count: int,
+                out_path: Path,
                 followers_file="cache/followers.json",
                 friends_file="cache/friends.json",
-                tweets_file="cache/tweets.json"):
+                tweets_file="cache/tweets.json") -> Tuple[user_dicts,
+                                                          user_dicts,
+                                                          user_ids,
+                                                          user_dicts]:
     """
         Fetch a list of users from Twitter API.
 
@@ -78,7 +94,8 @@ def fetch_users(apis, target, mode, nodes_to_consider, max_tweets_count, out_pat
     :param str tweets_file: the tweets filename in the cache
     :return: followers, friends, intersection of both, and union of both
     """
-    followers = friends = []
+    followers: user_dicts = []
+    friends: user_dicts = []
     if mode == Mode.USERS:
         if nodes_to_consider in ["followers", "all"]:
             followers = fetch_users_paged(apis, target, api_func='GetFollowersPaged',
@@ -87,6 +104,7 @@ def fetch_users(apis, target, mode, nodes_to_consider, max_tweets_count, out_pat
             friends = fetch_users_paged(apis, target, api_func='GetFriendsPaged',
                                         out_file=out_path / friends_file)
     else:
+        tweets: List[status_dict]
         if mode == Mode.SEARCH:
             tweets = get_or_set(out_path / tweets_file,
                                 partial(fetch_tweets, search_query=target, apis=apis, max_count=max_tweets_count),
@@ -98,24 +116,25 @@ def fetch_users(apis, target, mode, nodes_to_consider, max_tweets_count, out_pat
         else:
             raise ValueError("Unknown mode")
         print("Found {} tweets.".format(len(tweets)))
-        followers = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
+        followers: List[user_dict] = [{**tweet["user"], "query_created_at": tweet["created_at"]} for tweet in tweets]
         print("Found {} unique authors.".format(len(set(fol["id"] for fol in followers))))
         get_or_set(out_path / followers_file, followers, api_function=False)
 
-    followers_ids = [user["id"] for user in followers]
-    mutuals = [user["id"] for user in friends if user["id"] in followers_ids]
-    all_users = followers + [user for user in friends if user["id"] not in followers_ids]
+    followers_ids: list[user_id] = [user["id"] for user in followers]
+    mutuals: list[user_id] = [user["id"] for user in friends if user["id"] in followers_ids]
+    all_users: list[user_dict] = followers + [user for user in friends if user["id"] not in followers_ids]
     return followers, friends, mutuals, all_users
 
 
-def fetch_users_paged(apis, screen_name, api_func, out_file):
+def fetch_users_paged(apis: List[twitter.Api], screen_name: str, api_func: str, out_file) -> List[user_dict]:
     api_idx = 0
     next_cursor = -1
-    users = []
+    users: List[dict] = []
     while next_cursor != 0:
         try:
+            epoch_time = int(time.time())
             # follower.json serve as a reference, it should not be used with cache
-            new_users = []
+            new_users: Sequence[twitter.User] = []
             if api_func == "GetFollowersPaged":
                 next_cursor, previous_cursor, new_users = apis[api_idx].GetFollowersPaged(screen_name=screen_name,
                                                                                            count=200,
@@ -124,12 +143,14 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
                 next_cursor, previous_cursor, new_users = apis[api_idx].GetFriendsPaged(screen_name=screen_name,
                                                                                            count=200,
                                                                                            cursor=next_cursor)
-            users += [user._json for user in new_users]
+            users += [user._json for user in new_users]  # _json is defined in the creational method "fromJSONDict in twitterModel
             print(f"{api_func} found {len(users)} users.")
+            time_last_pull_apis[api_idx] = epoch_time
         except twitter.error.TwitterError as e:
             if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                rate_limited_api_key_hint: str = apis[api_idx]._consumer_key[-5:]
+                print(f'You reached the rate limit on **{rate_limited_api_key_hint} from users on api#{api_idx}. Last pull {epoch_time - time_last_pull_apis[api_idx]} seconds ago. Moving to next api')
                 api_idx = (api_idx + 1) % len(apis)
-                print(f"You reached the rate limit. Moving to next api: #{api_idx}")
                 sleep(1)
             else:
                 print("...but it failed. Error: {}".format(e))
@@ -137,7 +158,7 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
     return users
 
 
-def fetch_friendships(friendships, apis, users, excluded, out, target,
+def fetch_friendships(friendships: Dict[str, List], apis: apis, users: user_dicts, excluded, out, target,
                       save_frequency=15,
                       friends_restricted_to=None,
                       friendships_file="cache/friendships.json") -> None:
@@ -169,14 +190,19 @@ def fetch_friendships(friendships, apis, users, excluded, out, target,
             previous_cursor, next_cursor = 0, -1
             while previous_cursor != next_cursor and next_cursor != 0:
                 try:
+                    epoch_time = int(time.time())
                     next_cursor, previous_cursor, new_user_friends = apis[api_idx].GetFriendIDsPaged(user_id=user["id"],
                                                                                                      stringify_ids=True,
                                                                                                      cursor=next_cursor)
                     user_friends += new_user_friends
+                    time_last_pull_apis[api_idx] = epoch_time
                 except twitter.error.TwitterError as e:
                     if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                        rate_limited_api_key_hint: str = apis[api_idx]._consumer_key[-5:]
+
+                        print(
+                            f'You reached the rate limit on **{rate_limited_api_key_hint} from friendships on api#{api_idx}. Last pull {epoch_time - time_last_pull_apis[api_idx]} seconds ago. Moving to next api')
                         api_idx = (api_idx + 1) % len(apis)
-                        print(f"You reached the rate limit. Moving to next api: #{api_idx}")
                         sleep(15)
                     else:
                         print(f"failed at api: #{api_idx}")
@@ -195,20 +221,26 @@ def fetch_friendships(friendships, apis, users, excluded, out, target,
     get_or_set(out / target / friendships_file, friendships.copy(), force=True)
 
 
-def fetch_tweets(search_query, apis, max_count=1000000):
-    all_tweets, tweets, max_id = [], [], None
+def fetch_tweets(search_query, apis, max_count=1000000) -> List[twitter.Status]:
+    all_tweets: list[twitter.Status] = []
+    tweets: list[twitter.Status] = []
     max_id = 0
     api_idx = 0
     while len(all_tweets) < max_count:
         try:
+            epoch_time = int(time.time())
             tweets = apis[api_idx].GetSearch(term=search_query,
                                                count=100,
                                                result_type="recent",
                                                max_id=max_id)
+            time_last_pull_apis[api_idx] = epoch_time
         except twitter.error.TwitterError as e:
             if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
+                rate_limited_api_key_hint: str = apis[api_idx]._consumer_key[-5:]
+                print(
+                    f'You reached the rate limit on **{rate_limited_api_key_hint} from tweets on api#{api_idx}. Last pull {epoch_time - time_last_pull_apis[api_idx]} seconds ago. Moving to next api')
                 api_idx = (api_idx + 1) % len(apis)
-                print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+                sleep(15)
             else:
                 print("...but it failed. Error: {}".format(e))
                 user_friends = [""]
@@ -218,16 +250,17 @@ def fetch_tweets(search_query, apis, max_count=1000000):
         if len(tweets) < 100:
             print("Done: no more tweets.")
             break
-        max_id = min(tweet.id for tweet in tweets)
-    print(f"First & last tweet dates are: {all_tweets[0].created_at} - {all_tweets[-1].created_at}")
+        max_id = min(tweet.id for tweet in tweets)  # class Status has an id when created
+    print(f"First & last tweet dates are: {all_tweets[0].created_at} - {all_tweets[-1].created_at}")  # class Status has created_at
     return all_tweets
 
 
 # TODO: figure out what to do if the user wants to fetch all likes with no limit.
-def fetch_likes(user, api, max_count=2000):
-    all_tweets, max_id = [], None
+def fetch_likes(user, api, max_count=2000) -> List[twitter.Status]:
+    all_tweets: List[twitter.Status] = []
+    max_id: int | None = None
     while len(all_tweets) < max_count:
-        tweets = api.GetFavorites(screen_name=user,
+        tweets: List[twitter.Status] = api.GetFavorites(screen_name=user,
                                   count=100,
                                   max_id=max_id)
         all_tweets.extend(tweets)
@@ -241,7 +274,7 @@ def fetch_likes(user, api, max_count=2000):
 
 
 # noinspection PyProtectedMember
-def get_or_set(path, value=None, force=False, api_function=False):
+def get_or_set(path: Path, value=None, force=False, api_function=False) -> JSONType:
     """
         Get a value from a file if it exists, else write the value to the file.
         The value can also be a API callback, in which case the call is made only when the file is written.
@@ -254,29 +287,29 @@ def get_or_set(path, value=None, force=False, api_function=False):
     # Get
     if path.exists() and not force:
         with path.open("r") as f:
-            value = json.load(f)
+            value: JSONType = json.load(f)
     # Set
     else:
         path.parent.mkdir(parents=True, exist_ok=True)
         if api_function:
-            result = value()
+            result: Iterable = value()
             value = [item._json for item in result]
         with path.open("w") as f:
             json.dump(value, f, indent=2)
     return value
 
 
-def save_to_graph(users, friendships, out_path, filtering, edges_ratio=1.0):
-    columns = [field for field in users[0] if field not in ["id", "id_str"]]
-    nodes = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
-    users_df = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
+def save_to_graph(users, friendships, out_path: Path, filtering: str, edges_ratio: float = 1.0):
+    columns: List[str] = [field for field in users[0] if field not in ["id", "id_str"]]
+    nodes: Dict[str, List[str]] = {user["id_str"]: [user.get(field, "") for field in columns] for user in users}
+    users_df: pd.DataFrame = pd.DataFrame.from_dict(nodes, orient='index', columns=columns)
     users_df["Label"] = users_df["name"]
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    nodes_path = out_path / "nodes.csv"
+    nodes_path: Path = out_path / "nodes.csv"
     if filtering == "full":
         users_df.to_csv(nodes_path, index_label="Id")
     else:
-        columns_to_export = []
+        columns_to_export: List[str] = []
         if filtering == "light":
             columns_to_export = COLUMNS_TO_EXPORT_LIGHT + COLUMNS_TO_EXPORT_MINIMUM
         elif filtering == "minimum":
@@ -284,21 +317,21 @@ def save_to_graph(users, friendships, out_path, filtering, edges_ratio=1.0):
         users_df.to_csv(nodes_path, index_label="Id", columns=columns_to_export)
     print("Successfully exported {} nodes to {}.".format(users_df.shape[0], nodes_path))
     print("Start calculated edge")
-    edges_df = pd.DataFrame.from_dict(friendships, orient='index')
+    edges_df: pd.DataFrame = pd.DataFrame.from_dict(friendships, orient='index')
     if edges_ratio != 1.0:
         edges_df = edges_df.sample(frac=edges_ratio)
     edges_df = edges_df.stack().to_frame().reset_index().drop('level_1', axis=1)
     edges_df.columns = ['Source', 'Target']
-    edges_path = out_path / "edges.csv"
+    edges_path: Path = out_path / "edges.csv"
     edges_df.to_csv(edges_path, index_label="Id")
     print("Successfully exported {} edges to {}.".format(edges_df.shape[0], edges_path))
     return nodes_path, edges_path
 
 
 def main():
-    options = docopt(__doc__)
-    credentials = json.loads(open(options["--credentials"]).read())
-    apis = [
+    options: dict[str, Any] = docopt(__doc__)
+    credentials: List[dict] = json.loads(open(options["--credentials"]).read())
+    apis: List[twitter.Api] = [
         twitter.Api(consumer_key=credential["api_key"],
                     consumer_secret=credential["api_secret_key"],
                     access_token_key=credential["access_token"],
@@ -306,23 +339,30 @@ def main():
                     sleep_on_rate_limit=False)
         for credential in credentials
     ]
+    global time_last_pull_apis
+    time_last_pull_apis = [-1] * len(apis)
+    print(f'Starting data fetch with {len(apis)} api connections')
 
     try:
-        search_query = options["<query>"].split(',')
+        search_query: List[str] = options["<query>"].split(',')
         if options["<mode>"] not in ["users", "search", "likes"]:
             raise Exception("Mode must be one of 'users', 'search', 'likes'.")
         else:
-            mode = {"users": Mode.USERS, "search": Mode.SEARCH, "likes": Mode.LIKES}[options["<mode>"]]
-        nodes_to_consider = options["--nodes-to-consider"]
+            mode: Mode = {"users": Mode.USERS, "search": Mode.SEARCH, "likes": Mode.LIKES}[options["<mode>"]]
+        nodes_to_consider: str = options["--nodes-to-consider"]
         for target in search_query:
             print(f"Processing query {options['<mode>']}:{target}.")
-            out_path = Path(options["--out"]) / target
+            out_path: Path = Path(options["--out"]) / target
+            followers: user_dicts
+            friends: user_dicts
+            mutuals: user_ids
+            all_users: user_dicts
             followers, friends, mutuals, all_users = fetch_users(apis, target, mode, nodes_to_consider,
                                                                  int(options["--max-tweets-count"]),
                                                                  out_path)
-            users = {"followers": followers, "friends": friends, "all": all_users,
+            users: Dict[str, user_dicts] = {"followers": followers, "friends": friends, "all": all_users,
                      "few": random.choices(followers, k=min(100, len(followers)))}[options["--nodes-to-consider"]]
-            friendships = {}
+            friendships: Dict[str, List] = {}
             try:
                 fetch_friendships(friendships, apis, users, Path(options["--excluded"]), Path(options["--out"]), target,
                                   save_frequency=int(options["--save_frequency"]),

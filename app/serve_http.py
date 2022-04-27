@@ -1,15 +1,22 @@
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+from pathlib import Path
+from typing import Tuple
 
 
-def serve_http(path=None, server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler,
-               url="http://localhost", port=8000):
-    server_address = ('', port)
+def serve_http(path: Path = None, server_class: HTTPServer = HTTPServer,
+               handler_class: SimpleHTTPRequestHandler = SimpleHTTPRequestHandler,
+               url: str = "http://localhost", port: int = 8000):
+    server_address: Tuple[str, int] = ('', port)
     httpd = server_class(server_address, handler_class)
     if path:
-        nodes_path = path / "nodes.csv"
-        edges_path = path / "edges.csv"
-        params = "nodes={}&edges={}".format(nodes_path.as_posix(), edges_path.as_posix())
+        nodes_path: Path = path / "nodes.csv"
+        edges_path: Path = path / "edges.csv"
+        params: str = f'nodes={nodes_path.as_posix()}&edges={edges_path.as_posix()}'
     else:
-        params = ""
-    print("Serving HTTP at {}:{}?{}".format(url, port, params))
+        params = ''
+    print(f'Serving HTTP at {url}:{port}?{params}')
     httpd.serve_forever()
+
+
+if __name__ == "__main__":
+    serve_http(Path('/out/juan_m12i'))
