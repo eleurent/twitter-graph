@@ -131,7 +131,7 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
             api_idx = (api_idx + 1) % len(apis)
             print(f"You reached the rate limit. Moving to next api: #{api_idx}")
             sleep(1)
-        except tweepy.TweepyException:
+        except tweepy.TweepyException as e:
                 print("...but it failed. Error: {}".format(e))
     get_or_set(out_file, users, force=True, api_function=False)
     return users
