@@ -132,7 +132,7 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
             print(f"You reached the rate limit. Moving to next api: #{api_idx}")
             sleep(1)
         except tweepy.TweepyException as e:
-                print("...but it failed. Error: {}".format(e))
+            print("...but it failed. Error: {}".format(e))
     get_or_set(out_file, users, force=True, api_function=False)
     return users
 
@@ -204,13 +204,12 @@ def fetch_tweets(search_query, apis, max_count=1000000):
                                                count=100,
                                                result_type="recent",
                                                max_id=max_id)
-        except tweepy.errors.TwitterServerError as e:
-            if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
-                api_idx = (api_idx + 1) % len(apis)
-                print(f"You reached the rate limit. Moving to next api: #{api_idx}")
-            else:
-                print("...but it failed. Error: {}".format(e))
-                user_friends = [""]
+        except tweepy.TooManyRequests as e:
+            api_idx = (api_idx + 1) % len(apis)
+            print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+        except tweepy.TweepyException as e:
+            print("...but it failed. Error: {}".format(e))
+            user_friends = [""]
 
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
