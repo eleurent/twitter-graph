@@ -1,4 +1,4 @@
 docopt
 pandas
-python-twitter
+tweepy
 requests

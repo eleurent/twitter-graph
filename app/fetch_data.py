@@ -20,12 +20,13 @@ Options:
   --out <path>                 Directory of output files [default: out].
   --run-http-server            Run an HTTP server to visualize the graph in your browser with d3.js.
   --save_frequency <freq>      Number of account between each save in cache. [default: 15].
-  --filtering <type>           Filter to include only a subset of information for each account: full, light, min [default: full]
+  --filtering <type>           Filter to include only a subset of information for each account: full, light, min [default: full].
+  --auth <type>                Authentication method: oauth1, oauth2-bearer or oauth2-consumer-key [default: oauth1].
 """
 from functools import partial
 from time import sleep
 import requests
-import twitter
+import tweepy
 import json
 import pandas as pd
 import random
@@ -117,22 +118,21 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
             # follower.json serve as a reference, it should not be used with cache
             new_users = []
             if api_func == "GetFollowersPaged":
-                next_cursor, previous_cursor, new_users = apis[api_idx].GetFollowersPaged(screen_name=screen_name,
+                new_users, (previous_cursor, next_cursor) = apis[api_idx].get_followers(screen_name=screen_name,
                                                                                            count=200,
                                                                                            cursor=next_cursor)
             elif api_func == "GetFriendsPaged":
-                next_cursor, previous_cursor, new_users = apis[api_idx].GetFriendsPaged(screen_name=screen_name,
+                new_users, (previous_cursor, next_cursor) = apis[api_idx].get_friends(screen_name=screen_name,
                                                                                            count=200,
                                                                                            cursor=next_cursor)
             users += [user._json for user in new_users]
             print(f"{api_func} found {len(users)} users.")
-        except twitter.error.TwitterError as e:
-            if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
-                api_idx = (api_idx + 1) % len(apis)
-                print(f"You reached the rate limit. Moving to next api: #{api_idx}")
-                sleep(1)
-            else:
-                print("...but it failed. Error: {}".format(e))
+        except tweepy.TooManyRequests as e:
+            api_idx = (api_idx + 1) % len(apis)
+            print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+            sleep(1)
+        except tweepy.TweepyException as e:
+            print("...but it failed. Error: {}".format(e))
     get_or_set(out_file, users, force=True, api_function=False)
     return users
 
@@ -169,20 +169,19 @@ def fetch_friendships(friendships, apis, users, excluded, out, target,
             previous_cursor, next_cursor = 0, -1
             while previous_cursor != next_cursor and next_cursor != 0:
                 try:
-                    next_cursor, previous_cursor, new_user_friends = apis[api_idx].GetFriendIDsPaged(user_id=user["id"],
+                    new_user_friends, (next_cursor, previous_cursor) = apis[api_idx].get_friend_ids(user_id=user["id"],
                                                                                                      stringify_ids=True,
                                                                                                      cursor=next_cursor)
                     user_friends += new_user_friends
-                except twitter.error.TwitterError as e:
-                    if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
-                        api_idx = (api_idx + 1) % len(apis)
-                        print(f"You reached the rate limit. Moving to next api: #{api_idx}")
-                        sleep(15)
-                    else:
-                        print(f"failed at api: #{api_idx}")
-                        print("...but it failed. Error: {}".format(e))
-                        user_friends = []
-                        break
+                except tweepy.TooManyRequests as e:
+                    api_idx = (api_idx + 1) % len(apis)
+                    print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+                    sleep(15)
+                except tweepy.TweepyException as e:
+                    print(f"failed at api: #{api_idx}")
+                    print("...but it failed. Error: {}".format(e))
+                    user_friends = []
+                    break
                 except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
                     print(e)  # Why do I get these?
                     sleep(5)
@@ -201,17 +200,16 @@ def fetch_tweets(search_query, apis, max_count=1000000):
     api_idx = 0
     while len(all_tweets) < max_count:
         try:
-            tweets = apis[api_idx].GetSearch(term=search_query,
+            tweets = apis[api_idx].search_tweets(search_query,
                                                count=100,
                                                result_type="recent",
                                                max_id=max_id)
-        except twitter.error.TwitterError as e:
-            if not isinstance(e.message, str) and e.message[0]["code"] == TWITTER_RATE_LIMIT_ERROR:
-                api_idx = (api_idx + 1) % len(apis)
-                print(f"You reached the rate limit. Moving to next api: #{api_idx}")
-            else:
-                print("...but it failed. Error: {}".format(e))
-                user_friends = [""]
+        except tweepy.TooManyRequests as e:
+            api_idx = (api_idx + 1) % len(apis)
+            print(f"You reached the rate limit. Moving to next api: #{api_idx}")
+        except tweepy.TweepyException as e:
+            print("...but it failed. Error: {}".format(e))
+            user_friends = [""]
 
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
@@ -227,7 +225,7 @@ def fetch_tweets(search_query, apis, max_count=1000000):
 def fetch_likes(user, api, max_count=2000):
     all_tweets, max_id = [], None
     while len(all_tweets) < max_count:
-        tweets = api.GetFavorites(screen_name=user,
+        tweets = api.get_favorites(screen_name=user,
                                   count=100,
                                   max_id=max_id)
         all_tweets.extend(tweets)
@@ -298,14 +296,19 @@ def save_to_graph(users, friendships, out_path, filtering, edges_ratio=1.0):
 def main():
     options = docopt(__doc__)
     credentials = json.loads(open(options["--credentials"]).read())
-    apis = [
-        twitter.Api(consumer_key=credential["api_key"],
-                    consumer_secret=credential["api_secret_key"],
-                    access_token_key=credential["access_token"],
-                    access_token_secret=credential["access_token_secret"],
-                    sleep_on_rate_limit=False)
-        for credential in credentials
-    ]
+    if options["--auth"] not in ["oauth1", "oauth2-bearer", "oauth2-consumer-key"]:
+        raise Exception("Auth method must be one of 'oauth1', 'oauth2-bearer', 'oauth2-consumer-key'.")
+    elif options["--auth"] == "oauth2-bearer":
+        auths = [tweepy.OAuth2BearerHandler(credential["bearer_token"]) for credential in credentials]
+    elif options["--auth"] == "oauth2-consumer-key":
+        auths = [tweepy.OAuth2AppHandler(credential["api_key"],
+                                         consumer_secret=credential["api_secret_key"]) for credential in credentials]
+    else:
+        auths = [tweepy.OAuth1UserHandler(consumer_key=credential["api_key"],
+                                          consumer_secret=credential["api_secret_key"],
+                                          access_token=credential["access_token"],
+                                          access_token_secret=credential["access_token_secret"]) for credential in credentials]
+    apis = [tweepy.API(auth, wait_on_rate_limit=False) for auth in auths]
 
     try:
         search_query = options["<query>"].split(',')

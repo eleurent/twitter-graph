@@ -111,9 +111,15 @@ To get access to the Twitter API, you must first register on the [Twitter Develo
     "api_secret_key": "xxx",
     "access_token": "yyy",
     "access_token_secret": "zzz"
+    "bearer_token": "bbb"
   }
 ]
 ```
+
+You can use three authentication methods using `--auth` flag:
+- **oauth1**: requires `api_key`, `api_secret_key`, `access_token` and `access_token_secret`
+- **oauth2-bearer**: requires only `bearer_token`
+- **oauth2-consumer-key**: requires `api_key` and `api_secret_key`
 
 Moreover, this script currently relies Twitter's API v1.1, for which [an Elevated access is required](https://developer.twitter.com/en/docs/twitter-api/getting-started/about-twitter-api#v2-access-leve), so you will have to submit a request for elevated access.
 
@@ -147,6 +153,9 @@ Options:
   --excluded <file>            Path of the list of excluded users [default: excluded.json].
   --out <path>                 Directory of output files [default: out].
   --run-http-server            Run an HTTP server to visualize the graph in your browser with d3.js.
+  --save_frequency <freq>      Number of account between each save in cache. [default: 15].
+  --filtering <type>           Filter to include only a subset of information for each account: full, light, min [default: full].
+  --auth <type>                Authentication method: oauth1, oauth2-bearer or oauth2-consumer-key [default: oauth1].
 ```
 
 In the `users` mode, you can enter a username and the script will start by getting the list of their friends and followers, before going through these accounts one by one in order to build the edges of the graph.
