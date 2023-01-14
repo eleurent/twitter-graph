@@ -119,12 +119,12 @@ def fetch_users_paged(apis, screen_name, api_func, out_file):
             new_users = []
             if api_func == "GetFollowersPaged":
                 new_users, (previous_cursor, next_cursor) = apis[api_idx].get_followers(screen_name=screen_name,
-                                                                                           count=200,
-                                                                                           cursor=next_cursor)
+                                                                                        count=200,
+                                                                                        cursor=next_cursor)
             elif api_func == "GetFriendsPaged":
                 new_users, (previous_cursor, next_cursor) = apis[api_idx].get_friends(screen_name=screen_name,
-                                                                                           count=200,
-                                                                                           cursor=next_cursor)
+                                                                                      count=200,
+                                                                                      cursor=next_cursor)
             users += [user._json for user in new_users]
             print(f"{api_func} found {len(users)} users.")
         except tweepy.TooManyRequests as e:
@@ -169,9 +169,9 @@ def fetch_friendships(friendships, apis, users, excluded, out, target,
             previous_cursor, next_cursor = 0, -1
             while previous_cursor != next_cursor and next_cursor != 0:
                 try:
-                    new_user_friends, (next_cursor, previous_cursor) = apis[api_idx].get_friend_ids(user_id=user["id"],
-                                                                                                     stringify_ids=True,
-                                                                                                     cursor=next_cursor)
+                    new_user_friends, (previous_cursor, next_cursor) = apis[api_idx].get_friend_ids(user_id=user["id"],
+                                                                                                    stringify_ids=True,
+                                                                                                    cursor=next_cursor)
                     user_friends += new_user_friends
                 except tweepy.TooManyRequests as e:
                     api_idx = (api_idx + 1) % len(apis)
@@ -201,15 +201,14 @@ def fetch_tweets(search_query, apis, max_count=1000000):
     while len(all_tweets) < max_count:
         try:
             tweets = apis[api_idx].search_tweets(search_query,
-                                               count=100,
-                                               result_type="recent",
-                                               max_id=max_id)
-        except tweepy.TooManyRequests as e:
+                                                 count=100,
+                                                 result_type="recent",
+                                                 max_id=max_id)
+        except tweepy.TooManyRequests:
             api_idx = (api_idx + 1) % len(apis)
             print(f"You reached the rate limit. Moving to next api: #{api_idx}")
         except tweepy.TweepyException as e:
             print("...but it failed. Error: {}".format(e))
-            user_friends = [""]
 
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
@@ -226,8 +225,8 @@ def fetch_likes(user, api, max_count=2000):
     all_tweets, max_id = [], None
     while len(all_tweets) < max_count:
         tweets = api.get_favorites(screen_name=user,
-                                  count=100,
-                                  max_id=max_id)
+                                   count=100,
+                                   max_id=max_id)
         all_tweets.extend(tweets)
         print(f"Found {len(all_tweets)}/{max_count} tweets.")
         if len(tweets) < 100:
@@ -307,7 +306,8 @@ def main():
         auths = [tweepy.OAuth1UserHandler(consumer_key=credential["api_key"],
                                           consumer_secret=credential["api_secret_key"],
                                           access_token=credential["access_token"],
-                                          access_token_secret=credential["access_token_secret"]) for credential in credentials]
+                                          access_token_secret=credential["access_token_secret"])
+                 for credential in credentials]
     apis = [tweepy.API(auth, wait_on_rate_limit=False) for auth in auths]
 
     try:
